@@ -514,6 +514,31 @@ input[type="checkbox"] {
     backdrop-filter: blur(4px);
 }
 
+/* --- STATO SQUADRA --- */
+.stat-container { 
+    margin-bottom: 15px; 
+}
+.stat-header { 
+    display: flex; 
+    justify-content: space-between; 
+    font-size: 0.85rem; 
+    margin-bottom: 8px; 
+    color: var(--text-main); 
+    font-weight: bold; 
+}
+.stat-bar-bg { 
+    height: 14px; 
+    background: rgba(255,255,255,0.1); 
+    border-radius: 7px; 
+    overflow: hidden; 
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.05);
+}
+.stat-bar { 
+    height: 100%; 
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+}
+
 /* --- AGGIUNGI OGGETTO --- */
 .add-item-box {
     display: flex;

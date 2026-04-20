@@ -354,6 +354,7 @@ const initApp = async () => {
     initChecklist();
     initGeolocation();
     renderPhotos();
+    renderStats();
     
     initObserver();
 };
@@ -402,6 +403,26 @@ window.deletePhoto = (index) => {
     photos.splice(index, 1);
     localStorage.setItem('trip_photos', JSON.stringify(photos));
     renderPhotos();
+};
+
+// 13. STATO SQUADRA
+window.updateStat = (type, change) => {
+    let val = parseInt(localStorage.getItem(`stat_${type}`) || '100');
+    val += change;
+    if (val > 100) val = 100;
+    if (val < 0) val = 0;
+    localStorage.setItem(`stat_${type}`, val.toString());
+    renderStats();
+};
+
+const renderStats = () => {
+    ['hype', 'patience', 'social'].forEach(type => {
+        const val = localStorage.getItem(`stat_${type}`) || '100';
+        const bar = document.getElementById(`bar-${type}`);
+        const text = document.getElementById(`val-${type}`);
+        if (bar) bar.style.width = `${val}%`;
+        if (text) text.innerText = `${val}%`;
+    });
 };
 
 document.addEventListener('DOMContentLoaded', initApp);
