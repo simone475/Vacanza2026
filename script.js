@@ -461,13 +461,31 @@ const renderStats = () => {
 };
 
 // --- GUN.JS CONFIGURATION ---
-const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
-const tripNode = gun.get('vacanza2026_platjadaro_v1'); // ID univoco per il gruppo
+// Usiamo più relay per garantire che almeno uno funzioni
+const gun = Gun([
+    'https://gun-manhattan.herokuapp.com/gun',
+    'https://gun-ams1.herokuapp.com/gun',
+    'https://relay.peer.ooo/gun'
+]);
+
+const tripNode = gun.get('vacanza2026_platjadaro_v2'); // Versione 2 per evitare conflitti precedenti
+
+// Gestione connettività
+gun.on('hi', peer => {
+    console.log("Connesso al relay:", peer);
+    const indicator = document.getElementById('sync-status');
+    if (indicator) {
+        indicator.style.background = "#22c55e";
+        indicator.style.boxShadow = "0 0 8px #22c55e";
+    }
+});
 
 // Ascolto aggiornamenti Stats
 tripNode.get('stats').map().on((val, type) => {
-    localStorage.setItem(`stat_${type}`, val.toString());
-    renderStats();
+    if (val !== null) {
+        localStorage.setItem(`stat_${type}`, val.toString());
+        renderStats();
+    }
 });
 
 // Ascolto aggiornamenti Bingo
@@ -475,7 +493,8 @@ tripNode.get('bingo').map().on((val, index) => {
     localStorage.setItem(`bingo_item_${index}`, val);
     const cells = document.querySelectorAll('.bingo-cell');
     if (cells[index]) {
-        cells[index].classList.toggle('checked', val === true);
+        if (val === true) cells[index].classList.add('checked');
+        else cells[index].classList.remove('checked');
     }
 });
 
@@ -487,8 +506,10 @@ tripNode.get('cassa').on((data) => {
 // Ascolto nuovi oggetti Checklist
 tripNode.get('checklist_items').map().on((val, item) => {
     let customItems = JSON.parse(localStorage.getItem('custom_items') || '[]');
-    if (val === true && !customItems.includes(item)) {
-        customItems.push(item);
+    if (val === true) {
+        if (!customItems.includes(item) && !TRIP_CONFIG.group.items.includes(item)) {
+            customItems.push(item);
+        }
     } else if (val === null) {
         customItems = customItems.filter(i => i !== item);
     }
