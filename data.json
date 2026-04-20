@@ -1,0 +1,81 @@
+{
+    "destination": {
+        "name": "Platja d'Aro",
+        "lat": 41.8179,
+        "lon": 3.0669,
+        "date": "2026-08-02T09:00:00"
+    },
+    "group": {
+        "size": 7,
+        "items": []
+    },
+    "emergency": {
+        "address": "Carrer Esempio 123, Platja d'Aro, Spain",
+        "numbers": [
+            {"name": "Emergenza Europea", "number": "112"},
+            {"name": "Pronto Soccorso Locale", "number": "+34 123 456 789"}
+        ]
+    },
+    "team": [
+        {
+            "id": "pilota1",
+            "role": "Il Pilota",
+            "name": "Simone",
+            "icon": "🏎️",
+            "stats": ["+10 Riflessi", "-10 Pazienza nel traffico"]
+        },
+        {
+            "id": "pilota2",
+            "role": "Il Pilota",
+            "name": "Angelo",
+            "icon": "🏎️",
+            "stats": ["+10 Precisione di manovra", "-10 Tolleranza ai passeggeri che dormono"]
+        },
+        {
+            "id": "dj",
+            "role": "La DJ",
+            "name": "Sara",
+            "icon": "🎧",
+            "stats": ["+10 Selezione musicale", "-10 Accetta critiche"]
+        },
+         {
+            "id": "curve",
+            "role": "Soffro le curve",
+            "name": "Stella",
+            "icon": "🤢",
+            "stats": ["+10 Pretesa di sedersi davanti", "-10 Resistenza alle curve"]
+        },
+        {
+            "id": "storie",
+            "role": "Il racconta storie",
+            "name": "Matteo",
+            "icon": "📖",
+            "stats": ["+15 Storie divertenti", "-10 Sonnolenza"]
+        },
+        {
+            "id": "vigile",
+            "role": "Sempre vigile",
+            "name": "Petre",
+            "icon": "👀",
+            "stats": ["+50 Resistenza al sonno", "-20 Silenzio"]
+        },
+        {
+            "id": "navigatore",
+            "role": "La Navigatrice",
+            "name": "Noelia",
+            "icon": "🗺️",
+            "stats": ["+20 Capacità di lettura di Google Maps", "-10 Orientamento reale"]
+        }
+    ],
+    "bingo": [
+        "Macchina gialla",
+        "Tizio che dorme a bocca aperta",
+        "Autogrill con nome strano",
+        "Sorpasso a destra",
+        "Qualcuno si lamenta",
+        "Coda per incidente",
+        "Il mareeeee",
+        "una Ferrari",
+        "Tedeschi con i sandali e i calzini"
+    ]
+}

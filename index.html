@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Road Trip Hub 🚀</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1 class="floating">Si Parte!</h1>
+            <p id="countdown">Caricamento...</p>
+            <div id="weather" class="weather-widget" title="Meteo attuale a Platja d'Aro">
+                <span style="font-size: 0.9rem; margin-right: 8px; font-weight: bold; color: var(--text-main);">Platja d'Aro:</span>
+                <span id="weather-icon">⏳</span>
+                <span id="weather-temp">--°C</span>
+            </div>
+            <p id="weather-suggestion" style="font-size: 0.85rem; color: var(--text-dim); margin-top: 10px; text-align: center; font-weight: bold;"></p>
+        </header>
+
+        <div class="roadmap-container">
+            <!-- Tappa 1 -->
+            <div class="roadmap-stop">
+                <div class="stop-marker"></div>
+                <div class="card">
+                    <h2>El viaje: Platja d'Aro</h2>
+                    <div class="progress-container mt-3" style="margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 5px; color: var(--text-dim);">
+                            <span>Tragitto:</span>
+                            <span id="distance-text" style="font-weight: bold; color: white;">Calcolo in corso...</span>
+                        </div>
+                        <div style="height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                            <div id="distance-bar" style="height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent-blue), var(--accent-road)); transition: width 1s;"></div>
+                        </div>
+                    </div>
+                    <div class="nav-grid">
+                        <button onclick="naviga('google')" class="btn btn-white">Google Maps</button>
+                        <button onclick="naviga('waze')" class="btn btn-blue">Waze</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- La Squadra -->
+            <div class="roadmap-stop">
+                <div class="stop-marker marker-green"></div>
+                <div class="card">
+                    <h2>La Squadra</h2>
+                    <div id="teamContainer" class="team-grid"></div>
+                </div>
+            </div>
+
+            <!-- Tappa 2 -->
+            <div class="roadmap-stop">
+                <div class="stop-marker marker-pink"></div>
+                <div class="card">
+                    <h2>Cassa Automatica</h2>
+                    <p style="font-size: 0.7rem; color: #fbcfe8; margin-bottom: 10px;">Inserisci le spese effettuate (€):</p>
+                    
+                    <div class="input-group">
+                        <label>Rifornimento Kia</label>
+                        <input type="number" id="costKia" placeholder="0" oninput="recalcCassa()">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Rifornimento Punto</label>
+                        <input type="number" id="costPunto" placeholder="0" oninput="recalcCassa()">
+                    </div>
+
+                    <div class="input-group">
+                        <label>Pedaggi Totali</label>
+                        <input type="number" id="costTolls" placeholder="0" oninput="recalcCassa()">
+                    </div>
+
+                    <div class="result-box mt-3 pt-3 border-t">
+                        <span>Quota a testa (su 7):</span>
+                        <span>€<span id="result">0.00</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tappa 3 -->
+            <div class="roadmap-stop">
+                <div class="stop-marker marker-green"></div>
+                <div class="card">
+                    <h2>Musica per il viaggio</h2>
+                    <iframe style="border-radius:12px" src="https://open.spotify.com/embed/playlist/37i9dQZF1DWWMOmoHKNjPQ?utm_source=generator" width="100%" height="152" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+                </div>
+            </div>
+
+            <!-- Tappa 4 -->
+            <div class="roadmap-stop">
+                <div class="stop-marker"></div>
+                <div class="card">
+                    <h2>Da non dimenticare</h2>
+                    <div class="filter-buttons">
+                        <button id="btn-filter-all" onclick="setFilter('all')" class="btn-filter active">Tutti</button>
+                        <button id="btn-filter-missing" onclick="setFilter('missing')" class="btn-filter">Mancanti</button>
+                        <button id="btn-filter-done" onclick="setFilter('done')" class="btn-filter">Completati</button>
+                    </div>
+                    <div id="checkList">
+                    </div>
+                    <div class="add-item-box mt-3 pt-3 border-t">
+                        <input type="text" id="newItemInput" placeholder="Nuovo oggetto..." onkeypress="handleKeyPress(event)">
+                        <button onclick="addNewItem()" class="btn btn-blue" style="padding: 10px 15px; font-size: 0.9rem;">Aggiungi</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bingo -->
+            <div class="roadmap-stop">
+                <div class="stop-marker marker-green"></div>
+                <div class="card">
+                    <h2>Bingo del Viaggio</h2>
+                    <p style="font-size: 0.7rem; color: var(--text-dim); margin-bottom: 10px;">Chi completa per primo vince un panino!</p>
+                    <div id="bingoContainer" class="bingo-grid"></div>
+                </div>
+            </div>
+
+            <!-- SOS -->
+            <div class="roadmap-stop">
+                <div class="stop-marker marker-pink"></div>
+                <div class="card" style="border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.05);">
+                    <h2>Area Emergenza</h2>
+                    <div id="emergencyContainer"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

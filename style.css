@@ -1,0 +1,486 @@
+/* --- CONFIGURAZIONE COLORI TRAMONTO --- */
+:root {
+    --bg-dark: #1e112a; /* Prugna scuro */
+    --glass-bg: rgba(45, 20, 58, 0.6); /* Viola semitrasparente */
+    --accent-blue: #f97316; /* Arancione tramonto */
+    --accent-green: #ec4899; /* Rosa fluo */
+    --accent-road: #d946ef; /* Fucsia per la strada */
+    --text-main: #fdf4ff;
+    --text-dim: #fbcfe8;
+}
+
+/* --- ROADMAP LAYOUT --- */
+.roadmap-container {
+    position: relative;
+    padding-left: 30px; 
+    margin-top: 20px;
+}
+
+.roadmap-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 10px;
+    width: 4px;
+    background: linear-gradient(to bottom, var(--accent-blue), var(--accent-road), var(--accent-green));
+    border-radius: 2px;
+}
+
+.roadmap-stop {
+    position: relative;
+    margin-bottom: 40px;
+    opacity: 0; 
+    transform: translateY(30px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.roadmap-stop.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.stop-marker {
+    position: absolute;
+    left: -26px;
+    top: 20px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--bg-dark);
+    border: 4px solid var(--accent-blue);
+    box-shadow: 0 0 10px var(--accent-blue);
+    z-index: 2;
+}
+
+.stop-marker.marker-green {
+    border-color: var(--accent-green);
+    box-shadow: 0 0 10px var(--accent-green);
+}
+
+.stop-marker.marker-pink {
+    border-color: var(--accent-road);
+    box-shadow: 0 0 10px var(--accent-road);
+}
+
+/* --- RESET & BASE --- */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    line-height: 1.6;
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+}
+
+.container {
+    width: 100%;
+    max-width: 450px; /* Ottimizzato per smartphone */
+}
+
+/* --- HEADER --- */
+header {
+    text-align: center;
+    padding: 40px 0;
+}
+
+h1 {
+    font-size: 2.5rem;
+    font-weight: 900;
+    letter-spacing: -2px;
+    text-transform: uppercase;
+}
+
+#countdown {
+    color: var(--accent-blue);
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+/* --- CARD STYLE (GLASSMORPHISM) --- */
+.card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+h2 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    margin-bottom: 15px;
+}
+
+/* --- BOTTONI NAVIGAZIONE --- */
+.nav-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.btn {
+    padding: 15px;
+    border: none;
+    border-radius: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.1s, opacity 0.2s;
+}
+
+.btn:active {
+    transform: scale(0.95);
+}
+
+.btn-white { background: #ffffff; color: var(--bg-dark); }
+.btn-blue { background: linear-gradient(135deg, var(--accent-blue), var(--accent-road)); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
+
+/* --- INPUTS & CALCOLATORE --- */
+input[type="number"] {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid #334155;
+    color: white;
+    font-size: 1.5rem;
+    padding: 10px 0;
+    margin-bottom: 15px;
+    outline: none;
+}
+
+input[type="number"]:focus {
+    border-bottom-color: var(--accent-blue);
+}
+
+.cars-details {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cars-details div {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.result-box {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+}
+
+#result {
+    font-size: 2rem;
+    color: var(--accent-green);
+    font-weight: bold;
+}
+
+/* --- CHECKLIST --- */
+.checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+}
+
+input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    accent-color: var(--accent-blue);
+}
+
+.strikethrough {
+    text-decoration: line-through;
+    color: var(--text-dim);
+}
+
+/* --- ANIMAZIONE ANTIGRAVITY --- */
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0px); }
+}
+
+.floating {
+    animation: float 4s ease-in-out infinite;
+}
+
+/* --- METEO WIDGET --- */
+.weather-widget {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    font-size: 1.2rem;
+    color: var(--accent-blue);
+    background: rgba(0, 0, 0, 0.2);
+    padding: 8px 16px;
+    border-radius: 20px;
+    display: inline-flex;
+}
+
+/* --- CASSA AUTOMATICA --- */
+.input-group {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+.input-group label {
+    font-size: 0.9rem;
+    color: var(--text-main);
+}
+.input-group input[type="number"] {
+    width: 80px;
+    font-size: 1.1rem;
+    margin-bottom: 0;
+    text-align: right;
+    padding: 5px;
+}
+.mt-3 { margin-top: 15px; }
+.pt-3 { padding-top: 15px; }
+.border-t { border-top: 1px solid rgba(255, 255, 255, 0.1); }
+
+/* --- CHECKLIST (PRETTIFIED) --- */
+.checklist-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    margin-bottom: 8px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.checklist-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.checklist-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    flex: 1;
+}
+
+.checklist-checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
+    border: 2px solid var(--accent-blue);
+    background: rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+}
+
+.checklist-checkbox:checked {
+    background: var(--accent-blue);
+}
+
+.checklist-checkbox:checked::after {
+    content: "✓";
+    position: absolute;
+    color: white;
+    font-size: 16px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-weight: bold;
+}
+
+.strikethrough {
+    text-decoration: line-through;
+    color: var(--text-dim);
+    transition: color 0.3s;
+}
+
+.text-normal {
+    color: var(--text-main);
+    transition: color 0.3s;
+}
+
+/* --- CHECKLIST FILTERS & DELETE --- */
+.filter-buttons {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 15px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 6px;
+    border-radius: 12px;
+}
+.btn-filter {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+.btn-filter:hover {
+    color: var(--text-main);
+}
+.btn-filter.active {
+    background: var(--accent-blue);
+    color: white;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+}
+
+.btn-delete {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+.btn-delete:hover {
+    background: #ef4444;
+    color: white;
+    transform: scale(1.05);
+}
+
+/* --- RPG & BINGO --- */
+.team-grid {
+    display: flex;
+    overflow-x: auto;
+    gap: 15px;
+    padding-bottom: 10px;
+    scrollbar-width: thin;
+}
+.team-grid::-webkit-scrollbar { height: 6px; }
+.team-grid::-webkit-scrollbar-thumb { background: var(--accent-blue); border-radius: 4px; }
+
+.team-card {
+    min-width: 150px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 15px;
+    text-align: center;
+}
+.team-icon {
+    font-size: 2rem;
+    margin-bottom: 5px;
+}
+.team-role {
+    color: var(--accent-blue);
+    font-size: 0.9rem;
+    margin-bottom: 2px;
+}
+.team-name {
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin-bottom: 8px;
+}
+
+.bingo-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+.bingo-cell {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60px;
+}
+.bingo-cell.checked {
+    background: var(--accent-green);
+    color: white;
+    font-weight: bold;
+    transform: scale(0.95);
+    border-color: transparent;
+}
+
+/* --- SOS --- */
+.btn-sos-call {
+    background: #ef4444;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 0.85rem;
+}
+.btn-sos-maps {
+    background: transparent;
+    color: var(--text-main);
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 8px 15px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 0.9rem;
+    text-align: center;
+    transition: all 0.2s;
+}
+.btn-sos-maps:hover { background: rgba(255,255,255,0.1); }
+.sos-divider {
+    border-color: rgba(239, 68, 68, 0.2);
+    margin: 15px 0;
+}
+
+/* --- AGGIUNGI OGGETTO --- */
+.add-item-box {
+    display: flex;
+    gap: 10px;
+}
+.add-item-box input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    padding: 10px;
+    border-radius: 12px;
+    outline: none;
+}
+.add-item-box input:focus {
+    border-color: var(--accent-blue);
+}
