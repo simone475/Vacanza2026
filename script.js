@@ -136,11 +136,14 @@ window.setFilter = (filter) => {
 };
 
 window.deleteItem = (item) => {
-    let customItems = JSON.parse(localStorage.getItem('custom_items') || '[]');
-    customItems = customItems.filter(i => i !== item);
-    localStorage.setItem('custom_items', JSON.stringify(customItems));
-    localStorage.removeItem(`trip_item_${item}`);
-    renderChecklist();
+    if (typeof tripNode !== 'undefined') {
+        tripNode.get('checklist_items').get(item).put(null); // Rimuove da Gun
+    } else {
+        let customItems = JSON.parse(localStorage.getItem('custom_items') || '[]');
+        customItems = customItems.filter(i => i !== item);
+        localStorage.setItem('custom_items', JSON.stringify(customItems));
+        renderChecklist();
+    }
 };
 
 const initChecklist = () => {
@@ -148,8 +151,12 @@ const initChecklist = () => {
 };
 
 window.toggleItem = (item, checked) => {
-    localStorage.setItem(`trip_item_${item}`, checked);
-    renderChecklist(); 
+    if (typeof tripNode !== 'undefined') {
+        tripNode.get('checklist_states').get(item).put(checked);
+    } else {
+        localStorage.setItem(`trip_item_${item}`, checked);
+        renderChecklist(); 
+    }
 };
 
 window.addNewItem = () => {
@@ -157,11 +164,15 @@ window.addNewItem = () => {
     const val = input.value.trim();
     if (!val) return;
 
-    const customItems = JSON.parse(localStorage.getItem('custom_items') || '[]');
-    if (!TRIP_CONFIG.group.items.includes(val) && !customItems.includes(val)) {
-        customItems.push(val);
-        localStorage.setItem('custom_items', JSON.stringify(customItems));
-        renderChecklist();
+    if (typeof tripNode !== 'undefined') {
+        tripNode.get('checklist_items').get(val).put(true);
+    } else {
+        const customItems = JSON.parse(localStorage.getItem('custom_items') || '[]');
+        if (!TRIP_CONFIG.group.items.includes(val) && !customItems.includes(val)) {
+            customItems.push(val);
+            localStorage.setItem('custom_items', JSON.stringify(customItems));
+            renderChecklist();
+        }
     }
     input.value = '';
 };
@@ -471,6 +482,24 @@ tripNode.get('bingo').map().on((val, index) => {
 // Ascolto aggiornamenti Cassa
 tripNode.get('cassa').on((data) => {
     if (data) updateCassaUI(data.kia, data.punto, data.tolls);
+});
+
+// Ascolto nuovi oggetti Checklist
+tripNode.get('checklist_items').map().on((val, item) => {
+    let customItems = JSON.parse(localStorage.getItem('custom_items') || '[]');
+    if (val === true && !customItems.includes(item)) {
+        customItems.push(item);
+    } else if (val === null) {
+        customItems = customItems.filter(i => i !== item);
+    }
+    localStorage.setItem('custom_items', JSON.stringify(customItems));
+    renderChecklist();
+});
+
+// Ascolto stati Checklist (checked/unchecked)
+tripNode.get('checklist_states').map().on((checked, item) => {
+    localStorage.setItem(`trip_item_${item}`, checked);
+    renderChecklist();
 });
 
 document.addEventListener('DOMContentLoaded', initApp);
