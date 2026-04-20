@@ -69,14 +69,27 @@ window.recalcCassa = () => {
     const costKia = parseFloat(document.getElementById('costKia').value) || 0;
     const costPunto = parseFloat(document.getElementById('costPunto').value) || 0;
     const costTolls = parseFloat(document.getElementById('costTolls').value) || 0;
+    
+    // Sincronizziamo su Gun
+    if (typeof tripNode !== 'undefined') {
+        tripNode.get('cassa').put({ kia: costKia, punto: costPunto, tolls: costTolls });
+    } else {
+        // Fallback locale se Gun non è ancora pronto
+        updateCassaUI(costKia, costPunto, costTolls);
+    }
+};
+
+const updateCassaUI = (kia, punto, tolls) => {
     const resultEl = document.getElementById('result');
-
     if (!resultEl) return;
-
-    const totalTrip = costKia + costPunto + costTolls;
-    const perPerson = totalTrip / TRIP_CONFIG.group.size;
-
+    const totalTrip = parseFloat(kia || 0) + parseFloat(punto || 0) + parseFloat(tolls || 0);
+    const perPerson = totalTrip / (TRIP_CONFIG.group.size || 7);
     resultEl.innerText = perPerson.toFixed(2);
+    
+    // Aggiorna gli input se non sono quelli attivi (per non interrompere chi scrive)
+    if (document.activeElement.id !== 'costKia') document.getElementById('costKia').value = kia;
+    if (document.activeElement.id !== 'costPunto') document.getElementById('costPunto').value = punto;
+    if (document.activeElement.id !== 'costTolls') document.getElementById('costTolls').value = tolls;
 };
 
 // 5. CHECKLIST CON MEMORIA E FILTRI
@@ -242,8 +255,14 @@ const renderBingo = () => {
 };
 
 window.toggleBingo = (index, el) => {
-    const isChecked = el.classList.toggle('checked');
-    localStorage.setItem(`bingo_item_${index}`, isChecked);
+    const isChecked = !el.classList.contains('checked');
+    if (typeof tripNode !== 'undefined') {
+        tripNode.get('bingo').get(index.toString()).put(isChecked);
+    } else {
+        // Fallback locale
+        el.classList.toggle('checked', isChecked);
+        localStorage.setItem(`bingo_item_${index}`, isChecked);
+    }
 };
 
 // 10. RENDER EMERGENCY
@@ -411,8 +430,13 @@ window.updateStat = (type, change) => {
     val += change;
     if (val > 100) val = 100;
     if (val < 0) val = 0;
-    localStorage.setItem(`stat_${type}`, val.toString());
-    renderStats();
+    
+    if (typeof tripNode !== 'undefined') {
+        tripNode.get('stats').get(type).put(val);
+    } else {
+        localStorage.setItem(`stat_${type}`, val.toString());
+        renderStats();
+    }
 };
 
 const renderStats = () => {
@@ -424,5 +448,29 @@ const renderStats = () => {
         if (text) text.innerText = `${val}%`;
     });
 };
+
+// --- GUN.JS CONFIGURATION ---
+const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
+const tripNode = gun.get('vacanza2026_platjadaro_v1'); // ID univoco per il gruppo
+
+// Ascolto aggiornamenti Stats
+tripNode.get('stats').map().on((val, type) => {
+    localStorage.setItem(`stat_${type}`, val.toString());
+    renderStats();
+});
+
+// Ascolto aggiornamenti Bingo
+tripNode.get('bingo').map().on((val, index) => {
+    localStorage.setItem(`bingo_item_${index}`, val);
+    const cells = document.querySelectorAll('.bingo-cell');
+    if (cells[index]) {
+        cells[index].classList.toggle('checked', val === true);
+    }
+});
+
+// Ascolto aggiornamenti Cassa
+tripNode.get('cassa').on((data) => {
+    if (data) updateCassaUI(data.kia, data.punto, data.tolls);
+});
 
 document.addEventListener('DOMContentLoaded', initApp);

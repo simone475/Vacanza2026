@@ -8,6 +8,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
+    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
 </head>
 <body>
     <div class="container">
@@ -63,8 +64,12 @@
                             <span>Livello di Hype 🔥</span>
                             <span id="val-hype">100%</span>
                         </div>
-                        <div class="stat-bar-bg" onclick="updateStat('hype', 10)">
-                            <div id="bar-hype" class="stat-bar" style="width: 100%; background: #fbbf24;"></div>
+                        <div class="stat-controls">
+                            <button onclick="updateStat('hype', -10)" class="stat-btn">−</button>
+                            <div class="stat-bar-bg">
+                                <div id="bar-hype" class="stat-bar" style="width: 100%; background: #fbbf24;"></div>
+                            </div>
+                            <button onclick="updateStat('hype', 10)" class="stat-btn">+</button>
                         </div>
                     </div>
                     
@@ -73,10 +78,13 @@
                             <span>Pazienza del Pilota 🧘</span>
                             <span id="val-patience">100%</span>
                         </div>
-                        <div class="stat-bar-bg" onclick="updateStat('patience', -10)">
-                            <div id="bar-patience" class="stat-bar" style="width: 100%; background: #34d399;"></div>
+                        <div class="stat-controls">
+                            <button onclick="updateStat('patience', -10)" class="stat-btn">−</button>
+                            <div class="stat-bar-bg">
+                                <div id="bar-patience" class="stat-bar" style="width: 100%; background: #34d399;"></div>
+                            </div>
+                            <button onclick="updateStat('patience', 10)" class="stat-btn">+</button>
                         </div>
-                        <p style="font-size: 0.6rem; color: var(--text-dim); margin-top: 5px;">(Tocca per diminuire quando qualcuno chiede "manca molto?")</p>
                     </div>
 
                     <div class="stat-container mt-3">
@@ -84,8 +92,12 @@
                             <span>Batteria Sociale 🔋</span>
                             <span id="val-social">100%</span>
                         </div>
-                        <div class="stat-bar-bg" onclick="updateStat('social', -10)">
-                            <div id="bar-social" class="stat-bar" style="width: 100%; background: #60a5fa;"></div>
+                        <div class="stat-controls">
+                            <button onclick="updateStat('social', -10)" class="stat-btn">−</button>
+                            <div class="stat-bar-bg">
+                                <div id="bar-social" class="stat-bar" style="width: 100%; background: #60a5fa;"></div>
+                            </div>
+                            <button onclick="updateStat('social', 10)" class="stat-btn">+</button>
                         </div>
                     </div>
                 </div>
