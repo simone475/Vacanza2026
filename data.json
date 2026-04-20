@@ -1,8 +1,8 @@
 {
     "destination": {
         "name": "Platja d'Aro",
-        "lat": 41.8179,
-        "lon": 3.0669,
+        "lat": 41.8056,
+        "lon": 3.0586,
         "date": "2026-08-02T09:00:00"
     },
     "group": {
@@ -10,7 +10,7 @@
         "items": []
     },
     "emergency": {
-        "address": "Carrer Esempio 123, Platja d'Aro, Spain",
+        "address": "Avinguda de Verona Terol, Platja d'Aro, Spain",
         "numbers": [
             {"name": "Emergenza Europea", "number": "112"},
             {"name": "Pronto Soccorso Locale", "number": "+34 123 456 789"}

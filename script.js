@@ -7,8 +7,8 @@
 let TRIP_CONFIG = {
     destination: {
         name: "Platja d'Aro",
-        lat: 41.8179,
-        lon: 3.0669,
+        lat: 41.8056,
+        lon: 3.0586,
         date: "2026-08-02T09:00:00"
     },
     group: {
@@ -275,8 +275,7 @@ const renderEmergency = () => {
 };
 
 // 11. PROGRESSO VIAGGIO (Distanza e GPS)
-const START_LAT = 45.4642; // Milano simulata
-const START_LON = 9.1900;
+const MILAN_COORDS = { lat: 45.4642, lon: 9.1900 };
 
 const getDistanceInKm = (lat1, lon1, lat2, lon2) => {
     const R = 6371; 
@@ -291,9 +290,11 @@ const getDistanceInKm = (lat1, lon1, lat2, lon2) => {
 
 const updateDistance = (currentLat, currentLon) => {
     const { lat: destLat, lon: destLon } = TRIP_CONFIG.destination;
+    const ROAD_FACTOR = 1.3; // Fattore per passare da linea d'aria a percorso stradale reale
     
-    const totalDistance = getDistanceInKm(START_LAT, START_LON, destLat, destLon);
-    const currentDistance = getDistanceInKm(currentLat, currentLon, destLat, destLon);
+    // Calcoliamo la distanza totale fissa da Milano per la barra di progresso
+    const totalDistance = getDistanceInKm(MILAN_COORDS.lat, MILAN_COORDS.lon, destLat, destLon) * ROAD_FACTOR;
+    const currentDistance = getDistanceInKm(currentLat, currentLon, destLat, destLon) * ROAD_FACTOR;
     
     let progress = ((totalDistance - currentDistance) / totalDistance) * 100;
     if (progress < 0) progress = 0;
@@ -303,20 +304,31 @@ const updateDistance = (currentLat, currentLon) => {
     const textEl = document.getElementById('distance-text');
     
     if (barEl) barEl.style.width = `${progress}%`;
-    if (textEl) textEl.innerText = `${Math.round(currentDistance)} km all'arrivo`;
+    if (textEl) {
+        textEl.innerHTML = `${Math.round(currentDistance)} km alla meta <span style="font-size: 0.7rem; opacity: 0.7;">(su ${Math.round(totalDistance)} km totali)</span>`;
+    }
 };
 
+// Updated initGeolocation to fallback to city input if manual permission denied
 const initGeolocation = () => {
-    if (navigator.geolocation) {
+    // Richiesta esplicita all'utente
+    const wantsGPS = confirm("Vuoi attivare la geolocalizzazione per vedere a che punto sei del viaggio? 🚗\n(Verrà aperta anche una mappa con la posizione attuale)");
+    
+    if (wantsGPS && navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-            (pos) => updateDistance(pos.coords.latitude, pos.coords.longitude),
+            (pos) => {
+                const { lat: destLat, lon: destLon } = TRIP_CONFIG.destination;
+                updateDistance(pos.coords.latitude, pos.coords.longitude);
+                // Suggerimento di usare Maps
+                window.open(`https://www.google.com/maps/dir/${pos.coords.latitude},${pos.coords.longitude}/${destLat},${destLon}`, '_blank');
+            },
             (err) => {
-                console.warn("Geolocalizzazione negata, uso posizione simulata.");
-                updateDistance(43.5, 6.5); // Simuliamo di essere in viaggio
+                console.warn('Geolocalizzazione negata');
+                updateDistance(MILAN_COORDS.lat, MILAN_COORDS.lon); // Fallback a Milano
             }
         );
     } else {
-        updateDistance(43.5, 6.5);
+        updateDistance(MILAN_COORDS.lat, MILAN_COORDS.lon); // Fallback a Milano
     }
 };
 
@@ -341,8 +353,55 @@ const initApp = async () => {
     renderEmergency();
     initChecklist();
     initGeolocation();
+    renderPhotos();
     
     initObserver();
+};
+
+// 12. GALLERIA FOTO
+window.handlePhotoUpload = (e) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    for (let file of files) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const photos = JSON.parse(localStorage.getItem('trip_photos') || '[]');
+            photos.push(event.target.result);
+            try {
+                localStorage.setItem('trip_photos', JSON.stringify(photos));
+                renderPhotos();
+            } catch (err) {
+                alert("Memoria locale piena! Cancella qualche foto o usa l'album condiviso.");
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+};
+
+const renderPhotos = () => {
+    const container = document.getElementById('photoGallery');
+    if (!container) return;
+    const photos = JSON.parse(localStorage.getItem('trip_photos') || '[]');
+    
+    if (photos.length === 0) {
+        container.innerHTML = '<p style="font-size: 0.8rem; color: var(--text-dim); padding: 20px;">Nessuna foto ancora...</p>';
+        return;
+    }
+
+    container.innerHTML = photos.map((src, index) => `
+        <div class="photo-item">
+            <img src="${src}" onclick="window.open('${src}', '_blank')">
+            <button class="photo-delete" onclick="deletePhoto(${index})">✕</button>
+        </div>
+    `).join('');
+};
+
+window.deletePhoto = (index) => {
+    const photos = JSON.parse(localStorage.getItem('trip_photos') || '[]');
+    photos.splice(index, 1);
+    localStorage.setItem('trip_photos', JSON.stringify(photos));
+    renderPhotos();
 };
 
 document.addEventListener('DOMContentLoaded', initApp);
