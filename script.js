@@ -103,6 +103,11 @@ function renderChecklist() {
     const extra = JSON.parse(localStorage.getItem('custom_items') || "[]");
     const allItems = [...new Set([...extra])];
 
+    if (allItems.length === 0) {
+        listDiv.innerHTML = '<p style="text-align:center; color:rgba(255,255,255,0.4); font-size:0.9rem; padding:20px;">La lista è vuota.<br>Aggiungi qualcosa qui sopra! 👆</p>';
+        return;
+    }
+
     allItems.forEach(item => {
         const isChecked = localStorage.getItem(`trip_item_${item}`) === 'true';
         const div = document.createElement('div');
