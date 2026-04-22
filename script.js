@@ -21,7 +21,9 @@ function initGun() {
         'https://relay.peer.ooo/gun',
         'https://gun-us.herokuapp.com/gun',
         'https://gun-matrix.herokuapp.com/gun',
-        'https://dletta.top/gun'
+        'https://dletta.top/gun',
+        'https://gunjs.herokuapp.com/gun',
+        'https://gun-amsterdam.herokuapp.com/gun'
     ]);
     
     tripNode = gun.get('vacanza_2026_sqlite_v2'); // Nuova versione per pulizia
