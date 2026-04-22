@@ -99,10 +99,8 @@ function renderChecklist() {
     if (!listDiv) return;
     listDiv.innerHTML = '';
 
-    // Unisce gli oggetti fissi (i primi 6) con quelli aggiunti dagli utenti
-    const fissi = (TRIP_CONFIG.group.items && TRIP_CONFIG.group.items.length > 0) 
-                  ? TRIP_CONFIG.group.items 
-                  : ["Cavi ricarica", "Powerbank", "Acqua", "Snack", "Documenti", "Frigo"];
+    // Unisce gli oggetti configurati con quelli aggiunti dagli utenti
+    const fissi = TRIP_CONFIG.group.items || [];
     const extra = JSON.parse(localStorage.getItem('custom_items') || "[]");
     const allItems = [...new Set([...fissi, ...extra])]; // Evita duplicati
 
