@@ -4,7 +4,9 @@
  */
 
 let db; // Database SQLite globale
-let supabase; // Client Supabase per sincronizzazione cloud
+if (typeof supabase === 'undefined') {
+    var supabase; // Client Supabase per sincronizzazione cloud
+}
 
 // Configurazione Supabase (Inserisci qui i tuoi dati)
 const SUPABASE_URL = 'https://ldvcjhlssqijhwonquiy.supabase.co';
