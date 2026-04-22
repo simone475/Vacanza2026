@@ -383,57 +383,204 @@ const initApp = async () => {
     renderEmergency();
     initChecklist();
     initGeolocation();
-    renderPhotos();
+    initPhotoSection();
+    renderCloudPhotos();
     renderStats();
     
     initObserver();
 };
 
-// 12. GALLERIA FOTO
-window.handlePhotoUpload = (e) => {
-    const files = e.target.files;
-    if (!files) return;
+// 12. CLOUD FOTO CONDIVISO
+// -------------------------------------------------------
 
-    for (let file of files) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const photos = JSON.parse(localStorage.getItem('trip_photos') || '[]');
-            photos.push(event.target.result);
-            try {
-                localStorage.setItem('trip_photos', JSON.stringify(photos));
-                renderPhotos();
-            } catch (err) {
-                alert("Memoria locale piena! Cancella qualche foto o usa l'album condiviso.");
-            }
-        };
-        reader.readAsDataURL(file);
+// Mappa locale delle foto ricevute da Gun (id -> {data, by, ts})
+const sharedPhotos = {};
+let lightboxCurrentId = null;
+
+// --- Gestione Nome Utente ---
+window.savePhotoName = () => {
+    const input = document.getElementById('photoUserName');
+    const name = input ? input.value.trim() : '';
+    if (!name) { alert('Inserisci il tuo nome!'); return; }
+    localStorage.setItem('photo_user_name', name);
+    applyPhotoName(name);
+};
+
+window.changePhotoName = () => {
+    localStorage.removeItem('photo_user_name');
+    const namePrompt = document.getElementById('namePrompt');
+    const uploadSection = document.getElementById('uploadSection');
+    if (namePrompt) namePrompt.style.display = 'block';
+    if (uploadSection) uploadSection.style.display = 'none';
+};
+
+const applyPhotoName = (name) => {
+    const namePrompt = document.getElementById('namePrompt');
+    const uploadSection = document.getElementById('uploadSection');
+    const display = document.getElementById('currentUserDisplay');
+    if (namePrompt) namePrompt.style.display = 'none';
+    if (uploadSection) uploadSection.style.display = 'block';
+    if (display) display.innerText = `👤 ${name}`;
+};
+
+const initPhotoSection = () => {
+    const saved = localStorage.getItem('photo_user_name');
+    if (saved) {
+        applyPhotoName(saved);
+        const input = document.getElementById('photoUserName');
+        if (input) input.value = saved;
     }
 };
 
-const renderPhotos = () => {
-    const container = document.getElementById('photoGallery');
-    if (!container) return;
-    const photos = JSON.parse(localStorage.getItem('trip_photos') || '[]');
-    
+// --- Compressione Immagine (Canvas) ---
+const compressImage = (file) => {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const MAX = 700; // px max lato lungo
+                let { width, height } = img;
+                if (width > height && width > MAX) {
+                    height = Math.round((height * MAX) / width);
+                    width = MAX;
+                } else if (height > MAX) {
+                    width = Math.round((width * MAX) / height);
+                    height = MAX;
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.65));
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+};
+
+// --- Upload Foto su Gun ---
+window.handlePhotoUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const userName = localStorage.getItem('photo_user_name') || 'Anonimo';
+    const btnText = document.getElementById('uploadBtnText');
+    const progressBox = document.getElementById('uploadProgress');
+    const progressBar = document.getElementById('uploadProgressBar');
+
+    if (progressBox) progressBox.style.display = 'block';
+    if (btnText) btnText.innerText = `⏳ Caricamento...`;
+
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const pct = Math.round(((i) / files.length) * 100);
+        if (progressBar) progressBar.style.width = `${pct}%`;
+
+        try {
+            const compressed = await compressImage(file);
+            const photoId = `photo_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+
+            if (typeof tripNode !== 'undefined') {
+                tripNode.get('cloud_photos').get(photoId).put({
+                    data: compressed,
+                    by: userName,
+                    ts: Date.now(),
+                    id: photoId
+                });
+            }
+        } catch (err) {
+            console.error('Errore compressione foto:', err);
+        }
+    }
+
+    if (progressBar) progressBar.style.width = '100%';
+    setTimeout(() => {
+        if (progressBox) progressBox.style.display = 'none';
+        if (progressBar) progressBar.style.width = '0%';
+        if (btnText) btnText.innerText = `📸 Carica Foto`;
+    }, 800);
+
+    // Reset input
+    e.target.value = '';
+};
+
+// --- Render Galleria Cloud ---
+const renderCloudPhotos = () => {
+    const gallery = document.getElementById('photoGallery');
+    const countEl = document.getElementById('sharedPhotoCount');
+    if (!gallery) return;
+
+    const photos = Object.values(sharedPhotos)
+        .filter(p => p && p.data)
+        .sort((a, b) => (b.ts || 0) - (a.ts || 0));
+
+    if (countEl) {
+        countEl.innerText = photos.length === 0
+            ? 'Nessuna foto ancora... Caricane una!'
+            : `📷 ${photos.length} foto nel cloud`;
+    }
+
     if (photos.length === 0) {
-        container.innerHTML = '<p style="font-size: 0.8rem; color: var(--text-dim); padding: 20px;">Nessuna foto ancora...</p>';
+        gallery.innerHTML = '';
         return;
     }
 
-    container.innerHTML = photos.map((src, index) => `
-        <div class="photo-item">
-            <img src="${src}" onclick="window.open('${src}', '_blank')">
-            <button class="photo-delete" onclick="deletePhoto(${index})">✕</button>
-        </div>
-    `).join('');
+    gallery.innerHTML = photos.map(photo => {
+        const date = photo.ts ? new Date(photo.ts).toLocaleDateString('it-IT', { day:'2-digit', month:'short' }) : '';
+        return `
+            <div class="cloud-photo-card" onclick="openLightbox('${photo.id}')">
+                <img src="${photo.data}" alt="Foto di ${photo.by}" loading="lazy">
+                <div class="cloud-photo-tag">
+                    <span>👤 ${photo.by || 'Anonimo'}</span>
+                    <span style="opacity:0.7; font-weight:normal;">${date}</span>
+                </div>
+                <button class="cloud-photo-delete" onclick="event.stopPropagation(); deleteCloudPhoto('${photo.id}')" title="Elimina">✕</button>
+            </div>
+        `;
+    }).join('');
 };
 
-window.deletePhoto = (index) => {
-    const photos = JSON.parse(localStorage.getItem('trip_photos') || '[]');
-    photos.splice(index, 1);
-    localStorage.setItem('trip_photos', JSON.stringify(photos));
-    renderPhotos();
+// --- Lightbox ---
+window.openLightbox = (id) => {
+    const photo = sharedPhotos[id];
+    if (!photo) return;
+    lightboxCurrentId = id;
+    const lb = document.getElementById('photoLightbox');
+    const img = document.getElementById('lightboxImg');
+    const cap = document.getElementById('lightboxCaption');
+    if (img) img.src = photo.data;
+    if (cap) {
+        const date = photo.ts ? new Date(photo.ts).toLocaleString('it-IT') : '';
+        cap.innerText = `📸 Da: ${photo.by || 'Anonimo'}  ·  ${date}`;
+    }
+    if (lb) lb.classList.add('open');
 };
+
+window.closeLightbox = () => {
+    const lb = document.getElementById('photoLightbox');
+    if (lb) lb.classList.remove('open');
+    lightboxCurrentId = null;
+};
+
+window.deleteLightboxPhoto = () => {
+    if (lightboxCurrentId) {
+        deleteCloudPhoto(lightboxCurrentId);
+        closeLightbox();
+    }
+};
+
+// --- Elimina Foto ---
+window.deleteCloudPhoto = (id) => {
+    if (typeof tripNode !== 'undefined') {
+        tripNode.get('cloud_photos').get(id).put(null);
+    }
+    delete sharedPhotos[id];
+    renderCloudPhotos();
+};
+
+
 
 // 13. STATO SQUADRA
 // Stato locale stats (aggiornato in tempo reale da Gun)
@@ -531,6 +678,17 @@ tripNode.get('checklist_states').map().on((checked, item) => {
     if (!item || item === '_' || item.startsWith('_')) return; // Ignora metadati Gun
     localStorage.setItem(`trip_item_${item}`, checked);
     renderChecklist();
+});
+
+// Ascolto foto del cloud (da tutti i dispositivi)
+tripNode.get('cloud_photos').map().on((photo, id) => {
+    if (!id || id === '_' || id.startsWith('_')) return;
+    if (photo && photo.data) {
+        sharedPhotos[id] = { ...photo, id };
+    } else {
+        delete sharedPhotos[id];
+    }
+    renderCloudPhotos();
 });
 
 document.addEventListener('DOMContentLoaded', initApp);

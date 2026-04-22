@@ -467,51 +467,83 @@ input[type="checkbox"] {
     margin: 15px 0;
 }
 
-/* --- GALLERIA FOTO --- */
-.photo-gallery {
-    display: flex;
-    overflow-x: auto;
-    gap: 12px;
-    padding: 5px 0 15px 0;
-    scrollbar-width: none; /* Firefox */
-}
-.photo-gallery::-webkit-scrollbar {
-    display: none; /* Chrome/Safari */
+/* --- CLOUD FOTO CONDIVISO --- */
+.photo-gallery-cloud {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
 }
 
-.photo-item {
-    min-width: 110px;
-    max-width: 110px;
-    height: 110px;
-    border-radius: 12px;
+.cloud-photo-card {
+    border-radius: 14px;
     overflow: hidden;
     position: relative;
     background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-    flex-shrink: 0;
+    border: 1px solid rgba(255,255,255,0.08);
+    aspect-ratio: 1;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    animation: photoFadeIn 0.5s ease-out;
 }
-.photo-item img {
+
+@keyframes photoFadeIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+.cloud-photo-card:active {
+    transform: scale(0.97);
+}
+
+.cloud-photo-card img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    cursor: pointer;
+    display: block;
 }
-.photo-delete {
+
+.cloud-photo-tag {
     position: absolute;
-    top: 5px;
-    right: 5px;
-    background: rgba(0,0,0,0.6);
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,0.75));
+    padding: 18px 8px 7px;
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.9);
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+}
+
+.cloud-photo-delete {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: rgba(0,0,0,0.55);
     color: white;
     border: none;
     border-radius: 50%;
-    width: 22px;
-    height: 22px;
-    font-size: 14px;
+    width: 26px;
+    height: 26px;
+    font-size: 13px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     backdrop-filter: blur(4px);
+    transition: background 0.2s;
+    z-index: 2;
+}
+.cloud-photo-delete:hover { background: rgba(239,68,68,0.8); }
+
+/* Lightbox fix */
+#photoLightbox {
+    display: none;
+}
+#photoLightbox.open {
+    display: flex !important;
 }
 
 /* --- STATO SQUADRA --- */

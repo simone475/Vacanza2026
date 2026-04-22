@@ -173,22 +173,52 @@
                 </div>
             </div>
 
-            <!-- Galleria Foto -->
+            <!-- Cloud Foto Condiviso -->
             <div class="roadmap-stop">
-                <div class="stop-marker"></div>
+                <div class="stop-marker marker-green"></div>
                 <div class="card">
-                    <h2>I Nostri Momenti</h2>
-                    <p style="font-size: 0.7rem; color: var(--text-dim); margin-bottom: 15px;">Salva i ricordi sul tuo telefono. Per l'album di gruppo, usa il tasto sotto.</p>
-                    <div id="photoGallery" class="photo-gallery"></div>
-                    <div class="mt-3" style="display: flex; flex-direction: column; gap: 10px;">
-                        <label for="photoUpload" class="btn btn-blue" style="display: inline-block; cursor: pointer; text-align: center;">
-                            📸 Scatta o Carica Foto
+                    <h2>☁️ Cloud Foto del Gruppo</h2>
+                    <p style="font-size: 0.7rem; color: var(--text-dim); margin-bottom: 15px;">Carica una foto e la vedono tutti in tempo reale 📸</p>
+
+                    <!-- Step 1: Inserisci il tuo nome -->
+                    <div id="namePrompt" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 16px; margin-bottom: 16px;">
+                        <p style="font-size: 0.85rem; margin-bottom: 10px; color: var(--text-dim);">Come ti chiami? (per taggare le foto)</p>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="photoUserName" placeholder="Il tuo nome..." style="flex:1; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: white; padding: 10px 14px; border-radius: 12px; outline: none; font-size: 0.9rem;" onkeypress="if(event.key==='Enter') savePhotoName()">
+                            <button onclick="savePhotoName()" class="btn btn-blue" style="padding: 10px 18px; font-size: 0.85rem; white-space: nowrap;">Salva</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Upload (visibile dopo aver salvato il nome) -->
+                    <div id="uploadSection" style="display:none; margin-bottom: 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <span id="currentUserDisplay" style="font-size: 0.85rem; color: var(--accent-blue); font-weight: bold;"></span>
+                            <button onclick="changePhotoName()" style="background: transparent; border: 1px solid rgba(255,255,255,0.15); color: var(--text-dim); font-size: 0.75rem; padding: 4px 10px; border-radius: 8px; cursor: pointer;">Cambia</button>
+                        </div>
+                        <label for="photoUpload" class="btn btn-blue" style="display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; text-align: center; padding: 14px;">
+                            <span id="uploadBtnText">📸 Carica Foto</span>
                         </label>
                         <input type="file" id="photoUpload" accept="image/*" multiple style="display: none;" onchange="handlePhotoUpload(event)">
-                        
-                        <a href="https://photos.google.com" target="_blank" class="btn btn-white" style="text-align: center; text-decoration: none; font-size: 0.9rem;">
-                            🔗 Album Condiviso (Google Photos)
-                        </a>
+                    </div>
+
+                    <!-- Progress bar upload -->
+                    <div id="uploadProgress" style="display:none; margin-bottom: 12px;">
+                        <div style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 6px;">Caricamento in corso...</div>
+                        <div style="height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+                            <div id="uploadProgressBar" style="height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent-blue), var(--accent-road)); transition: width 0.3s;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Galleria condivisa -->
+                    <div id="sharedPhotoCount" style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 10px;">Nessuna foto ancora...</div>
+                    <div id="photoGallery" class="photo-gallery-cloud"></div>
+
+                    <!-- Lightbox -->
+                    <div id="photoLightbox" onclick="closeLightbox()" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.92); z-index:9999; align-items:center; justify-content:center; flex-direction:column;">
+                        <img id="lightboxImg" style="max-width:90vw; max-height:80vh; border-radius:12px; object-fit:contain;">
+                        <div id="lightboxCaption" style="color:white; font-size:0.85rem; margin-top:12px; opacity:0.8;"></div>
+                        <button onclick="deleteLightboxPhoto()" style="margin-top:16px; background:rgba(239,68,68,0.8); color:white; border:none; border-radius:10px; padding:8px 20px; cursor:pointer; font-size:0.85rem;">🗑️ Elimina</button>
+                        <p style="font-size:0.7rem; color:rgba(255,255,255,0.4); margin-top:8px;">Tocca fuori per chiudere</p>
                     </div>
                 </div>
             </div>
