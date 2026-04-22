@@ -8,24 +8,40 @@ let gun, tripNode; // Gun.js per sincronizzazione cloud
 
 // Configurazione Gun.js
 function initGun() {
+    // Imposta inizialmente come arancione (connessione in corso)
+    const indicator = document.getElementById('sync-status');
+    if (indicator) {
+        indicator.style.background = "#f59e0b"; // Arancione
+        indicator.style.boxShadow = "0 0 8px #f59e0b";
+        indicator.title = "Connessione al cloud in corso...";
+    }
+
     gun = Gun([
         'https://gun-manhattan.herokuapp.com/gun',
         'https://relay.peer.ooo/gun',
-        'https://gun-us.herokuapp.com/gun'
+        'https://gun-us.herokuapp.com/gun',
+        'https://gun-matrix.herokuapp.com/gun',
+        'https://dletta.top/gun'
     ]);
-    tripNode = gun.get('vacanza_2026_sqlite_v1');
+    
+    tripNode = gun.get('vacanza_2026_sqlite_v2'); // Nuova versione per pulizia
     
     // Gestione indicatore connettività
     gun.on('hi', peer => {
-        console.log("Gun.js: Connesso al relay");
-        const indicator = document.getElementById('sync-status');
+        console.log("Gun.js: Connesso a un peer");
         if (indicator) {
-            indicator.style.background = "#22c55e";
+            indicator.style.background = "#22c55e"; // Verde
             indicator.style.boxShadow = "0 0 8px #22c55e";
+            indicator.title = "Sincronizzazione attiva";
         }
     });
+
+    gun.on('bye', peer => {
+        console.warn("Gun.js: Connessione persa con un peer");
+        // Se non ci sono altri peer, potremmo rimetterlo rosso/arancio
+    });
     
-    console.log("Gun.js: Inizializzato per la sincronizzazione cloud");
+    console.log("Gun.js: Inizializzato");
 }
 
 async function initSQLite() {
