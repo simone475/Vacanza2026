@@ -116,13 +116,12 @@ const renderChecklist = () => {
         div.className = "checklist-item";
         
         div.innerHTML = `
-            <label class="checklist-label">
+            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; width:100%;">
                 <input type="checkbox" 
-                       id="check-${item}"
+                       id="check-${item}" 
                        ${isChecked ? 'checked' : ''} 
-                       onchange="tripNode.get('checklist_states').get('${item.replace(/'/g, "\\'")}').put(this.checked)"
-                       class="checklist-checkbox">
-                <span id="text-${item}" class="${isChecked ? 'strikethrough' : 'text-normal'}">${item}</span>
+                       onchange="tripNode.get('checklist_states').get('${item.replace(/'/g, "\\'")}').put(this.checked)">
+                <span id="text-${item}" class="${isChecked ? 'strikethrough' : ''}">${item}</span>
             </label>
             <button class="btn-delete" onclick="deleteItem('${item.replace(/'/g, "\\'")}')" title="Elimina">×</button>
         `;
@@ -697,31 +696,7 @@ tripNode.get('checklist_items').map().on((val, item) => {
     renderChecklist();
 });
 
-// Ascolta i cambiamenti della checklist da altri dispositivi
-tripNode.get('checklist_states').map().on((val, item) => {
-    if (!item || item === '_' || item.startsWith('_')) return;
 
-    // 1. Aggiorna la memoria locale del telefono
-    localStorage.setItem(`trip_item_${item}`, val);
-
-    // 2. Trova la checkbox nella pagina e aggiornala visivamente
-    const cb = document.getElementById(`check-${item}`);
-    if (cb) {
-        cb.checked = val;
-    }
-
-    // 3. Applica l'effetto barrato al testo
-    const txt = document.getElementById(`text-${item}`);
-    if (txt) {
-        if (val === true) {
-            txt.style.textDecoration = "line-through";
-            txt.style.opacity = "0.5";
-        } else {
-            txt.style.textDecoration = "none";
-            txt.style.opacity = "1";
-        }
-    }
-});
 
 // Ascolto foto del cloud (da tutti i dispositivi)
 tripNode.get('cloud_photos').map().on((photo, id) => {
@@ -732,6 +707,30 @@ tripNode.get('cloud_photos').map().on((photo, id) => {
         delete sharedPhotos[id];
     }
     renderCloudPhotos();
+});
+
+// COPIA QUESTO IN FONDO AL FILE script.js
+tripNode.get('checklist_states').map().on((val, item) => {
+    if (!item || item.startsWith('_')) return;
+
+    // Aggiorna memoria locale
+    localStorage.setItem(`trip_item_${item}`, val);
+
+    // Aggiorna visivamente la checkbox
+    const cb = document.getElementById(`check-${item}`);
+    if (cb) cb.checked = val;
+
+    // Aggiorna visivamente il testo (barrato/normale)
+    const txt = document.getElementById(`text-${item}`);
+    if (txt) {
+        if (val) {
+            txt.style.textDecoration = "line-through";
+            txt.style.opacity = "0.5";
+        } else {
+            txt.style.textDecoration = "none";
+            txt.style.opacity = "1";
+        }
+    }
 });
 
 document.addEventListener('DOMContentLoaded', initApp);
