@@ -18,17 +18,22 @@ async function initSQLite() {
             console.log("SQLite: Database caricato da IndexedDB");
         } else {
             db = new SQL.Database();
-            // Carica lo schema dal file esterno
-            try {
-                const sqlRes = await fetch('setup.sql');
+            console.log("SQLite: Nuovo database creato");
+        }
+
+        // Esegui sempre lo schema (CREATE TABLE IF NOT EXISTS è sicuro)
+        try {
+            const sqlRes = await fetch('setup.sql');
+            if (sqlRes.ok) {
                 const sqlText = await sqlRes.text();
                 db.run(sqlText);
-                console.log("SQLite: Database inizializzato con setup.sql");
-                await saveDBToIndexedDB();
-            } catch (e) {
-                console.error("Errore nel caricamento di setup.sql:", e);
+                console.log("SQLite: Schema sincronizzato");
             }
+        } catch (e) {
+            console.warn("SQLite: Impossibile caricare setup.sql, procedo con il database esistente.");
         }
+        
+        if (!savedDB) await saveDBToIndexedDB();
     } catch (err) {
         console.error("Errore inizializzazione SQLite:", err);
     }
