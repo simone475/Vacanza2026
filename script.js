@@ -1,8 +1,3 @@
-/*
- * ROAD TRIP CORE SCRIPT
- * Configurazione e logica per il viaggio di gruppo
- */
-
 var db; // Database SQLite globale (var allows redeclaration on reload)
 var supabase; // Client Supabase per sincronizzazione cloud (var allows redeclaration on reload)
 
