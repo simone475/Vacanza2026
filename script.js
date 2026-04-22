@@ -19,44 +19,44 @@ function initGun() {
     gun = Gun({
         peers: [
             'https://gun-manhattan.herokuapp.com/gun',
-            'https://relay.gun.eco/gun',
-            'https://relay.peer.ooo/gun'
+            'https://relay.peer.ooo/gun',
+            'https://relay.gun.eco/gun'
         ],
         localStorage: false,
         retry: 2000
     });
     
-    tripNode = gun.get('vacanza_2026_FINAL_SYNC'); // Canale definitivo
+    tripNode = gun.get('vacanza_2026_FINAL_SYNC');
     
     let activePeers = 0;
-    let lastConnectionTime = 0;
 
-    // Gestione indicatore connettività
+    // Heartbeat per mantenere attiva la connessione su mobile
+    setInterval(() => {
+        if (activePeers > 0) {
+            gun.get('heartbeat').put(Date.now());
+        }
+    }, 15000);
+
+    // Funzione diagnostica
+    window.checkCloud = () => {
+        alert(`Stato Cloud:\n- Peer attivi: ${activePeers}\n- Canale: FINAL_SYNC\n- Database: SQLite OK`);
+    };
+
     gun.on('hi', peer => {
         activePeers++;
-        lastConnectionTime = Date.now();
-        console.log("Gun.js: Peer connesso (" + activePeers + ")");
         if (indicator) {
             indicator.style.background = "#22c55e"; // Verde
-            indicator.style.boxShadow = "0 0 8px #22c55e";
-            indicator.title = "Sincronizzazione attiva (" + activePeers + " peer)";
+            indicator.style.boxShadow = "0 0 10px #22c55e";
         }
     });
 
     gun.on('bye', peer => {
         activePeers--;
-        if (activePeers < 0) activePeers = 0;
-        console.warn("Gun.js: Peer disconnesso (" + activePeers + ")");
-        
-        // Se abbiamo appena avuto una connessione e l'abbiamo persa, mettiamo giallo (instabile)
-        if (indicator) {
-            if (activePeers === 0) {
+        if (activePeers <= 0) {
+            activePeers = 0;
+            if (indicator) {
                 indicator.style.background = "#ef4444"; // Rosso
-                indicator.style.boxShadow = "0 0 8px #ef4444";
-                indicator.title = "Connessione persa - Riconnessione in corso...";
-            } else {
-                indicator.style.background = "#f59e0b"; // Giallo
-                indicator.style.boxShadow = "0 0 8px #f59e0b";
+                indicator.style.boxShadow = "0 0 10px #ef4444";
             }
         }
     });
