@@ -4,6 +4,29 @@
  */
 
 let db; // Database SQLite globale
+let gun, tripNode; // Gun.js per sincronizzazione cloud
+
+// Configurazione Gun.js
+function initGun() {
+    gun = Gun([
+        'https://gun-manhattan.herokuapp.com/gun',
+        'https://relay.peer.ooo/gun',
+        'https://gun-us.herokuapp.com/gun'
+    ]);
+    tripNode = gun.get('vacanza_2026_sqlite_v1');
+    
+    // Gestione indicatore connettività
+    gun.on('hi', peer => {
+        console.log("Gun.js: Connesso al relay");
+        const indicator = document.getElementById('sync-status');
+        if (indicator) {
+            indicator.style.background = "#22c55e";
+            indicator.style.boxShadow = "0 0 8px #22c55e";
+        }
+    });
+    
+    console.log("Gun.js: Inizializzato per la sincronizzazione cloud");
+}
 
 async function initSQLite() {
     try {
@@ -138,11 +161,14 @@ window.salvaCassaCloud = async () => {
     const punto = parseFloat(document.getElementById('costPunto')?.value) || 0;
     const tolls = parseFloat(document.getElementById('costTolls')?.value) || 0;
 
-    // Salva in SQLite
+    // 1. Salva in SQLite (Locale)
     db.run("UPDATE cassa SET kia = ?, punto = ?, tolls = ? WHERE id = 1", [kia, punto, tolls]);
     await saveDBToIndexedDB();
     
-    // Aggiorna UI subito
+    // 2. Invia a Gun.js (Cloud)
+    tripNode.get('cassa').put({ kia, punto, tolls });
+    
+    // 3. Aggiorna UI subito
     aggiornaRisultatoCassa(kia, punto, tolls);
 };
 
@@ -194,10 +220,14 @@ function renderChecklist() {
     });
 }
 
-// Funzione per salvare la spunta localmente (ora in SQLite)
+// Funzione per salvare la spunta localmente (ora in SQLite) e sincronizzare
 window.sendCheckToCloud = async function(item, status) {
     db.run("UPDATE checklist SET is_checked = ? WHERE item = ?", [status ? 1 : 0, item]);
     await saveDBToIndexedDB();
+    
+    // Sincronizza stato spunta nel cloud
+    tripNode.get('checklist_states').get(item).put(status);
+    
     renderChecklist();
 };
 
@@ -207,8 +237,13 @@ window.addItem = async function() {
     const val = input.value.trim();
     if (val) {
         try {
+            // 1. Locale SQLite
             db.run("INSERT INTO checklist (item, is_checked, is_custom) VALUES (?, 0, 1)", [val]);
             await saveDBToIndexedDB();
+            
+            // 2. Cloud Gun
+            tripNode.get('custom_items').get(val).put(true);
+            
             input.value = '';
             renderChecklist();
         } catch (e) {
@@ -219,8 +254,14 @@ window.addItem = async function() {
 
 // Funzione per eliminare un oggetto
 window.removeItem = async function(item) {
+    // 1. Locale SQLite
     db.run("DELETE FROM checklist WHERE item = ?", [item]);
     await saveDBToIndexedDB();
+    
+    // 2. Cloud Gun
+    tripNode.get('custom_items').get(item).put(null);
+    tripNode.get('checklist_states').get(item).put(null);
+    
     renderChecklist();
 };
 
@@ -404,8 +445,9 @@ const initGeolocation = () => {
 
 // INIZIALIZZAZIONE CON FETCH
 const initApp = async () => {
-    // Inizializza SQLite prima di tutto
+    // Inizializza SQLite e Gun.js
     await initSQLite();
+    initGun();
 
     try {
         const res = await fetch('data.json');
@@ -417,7 +459,48 @@ const initApp = async () => {
         console.warn("Esecuzione locale senza server, utilizzo i dati di default", e);
     }
     
-    // Caricamento dati da SQLite per Cassa
+    // --- SINCRONIZZAZIONE CLOUD -> SQLITE (Ascoltatori) ---
+
+    // 1. Sincronizzazione Statistiche
+    tripNode.get('stats').map().on(async (val, type) => {
+        if (val !== null && typeof val === 'number') {
+            db.run("UPDATE stats SET value = ? WHERE id = ?", [val, type]);
+            await saveDBToIndexedDB();
+            localStats[type] = val;
+            renderStats();
+        }
+    });
+
+    // 2. Sincronizzazione Cassa
+    tripNode.get('cassa').on(async (data) => {
+        if (data) {
+            db.run("UPDATE cassa SET kia = ?, punto = ?, tolls = ? WHERE id = 1", [data.kia, data.punto, data.tolls]);
+            await saveDBToIndexedDB();
+            aggiornaRisultatoCassa(data.kia || 0, data.punto || 0, data.tolls || 0);
+        }
+    });
+
+    // 3. Sincronizzazione Checklist (Aggiunta/Rimozione)
+    tripNode.get('custom_items').map().on(async (exists, name) => {
+        if (!name || name.startsWith('_')) return;
+        if (exists === true) {
+            db.run("INSERT OR IGNORE INTO checklist (item, is_checked, is_custom) VALUES (?, 0, 1)", [name]);
+        } else {
+            db.run("DELETE FROM checklist WHERE item = ?", [name]);
+        }
+        await saveDBToIndexedDB();
+        renderChecklist();
+    });
+
+    // 4. Sincronizzazione Checklist (Spunte)
+    tripNode.get('checklist_states').map().on(async (val, name) => {
+        if (!name || name.startsWith('_')) return;
+        db.run("UPDATE checklist SET is_checked = ? WHERE item = ?", [val ? 1 : 0, name]);
+        await saveDBToIndexedDB();
+        renderChecklist();
+    });
+
+    // Caricamento dati iniziali da SQLite per UI
     try {
         const cassaRes = db.exec("SELECT kia, punto, tolls FROM cassa WHERE id = 1");
         if (cassaRes.length > 0) {
@@ -426,7 +509,6 @@ const initApp = async () => {
         }
     } catch (e) { console.warn("Dati cassa non trovati in DB", e); }
 
-    // Caricamento dati da SQLite per Stats
     try {
         const statsRes = db.exec("SELECT id, value FROM stats");
         if (statsRes.length > 0) {
@@ -665,9 +747,12 @@ window.updateStat = async (type, change) => {
     localStats[type] = val;
     renderStats();
     
-    // Salva in SQLite
+    // 1. Salva in SQLite
     db.run("UPDATE stats SET value = ? WHERE id = ?", [val, type]);
     await saveDBToIndexedDB();
+
+    // 2. Pubblica su Gun.js
+    tripNode.get('stats').get(type).put(val);
 };
 
 // Caricamento foto locali all'avvio
