@@ -104,8 +104,18 @@ function renderChecklist() {
     const extra = JSON.parse(localStorage.getItem('custom_items') || "[]");
     const allItems = [...new Set([...fissi, ...extra])]; // Evita duplicati
 
+    // Aggiorna lo stato visivo dei pulsanti filtro
+    document.querySelectorAll('.btn-filter').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.getElementById(`btn-filter-${currentFilter}`);
+    if (activeBtn) activeBtn.classList.add('active');
+
     allItems.forEach(item => {
         const isChecked = localStorage.getItem(`trip_item_${item}`) === 'true';
+        
+        // Applica il filtro
+        if (currentFilter === 'missing' && isChecked) return;
+        if (currentFilter === 'done' && !isChecked) return;
+
         const isExtra = extra.includes(item);
         const div = document.createElement('div');
         div.className = "checklist-item";
