@@ -436,23 +436,12 @@ window.deletePhoto = (index) => {
 };
 
 // 13. STATO SQUADRA
-window.updateStat = (type, change) => {
-    let val = parseInt(localStorage.getItem(`stat_${type}`) || '100');
-    val += change;
-    if (val > 100) val = 100;
-    if (val < 0) val = 0;
-    
-    if (typeof tripNode !== 'undefined') {
-        tripNode.get('stats').get(type).put(val);
-    } else {
-        localStorage.setItem(`stat_${type}`, val.toString());
-        renderStats();
-    }
-};
+// Stato locale stats (aggiornato in tempo reale da Gun)
+const localStats = { hype: 100, patience: 100, social: 100 };
 
 const renderStats = () => {
     ['hype', 'patience', 'social'].forEach(type => {
-        const val = localStorage.getItem(`stat_${type}`) || '100';
+        const val = localStats[type];
         const bar = document.getElementById(`bar-${type}`);
         const text = document.getElementById(`val-${type}`);
         if (bar) bar.style.width = `${val}%`;
@@ -460,15 +449,29 @@ const renderStats = () => {
     });
 };
 
+window.updateStat = (type, change) => {
+    let val = localStats[type];
+    val += change;
+    if (val > 100) val = 100;
+    if (val < 0) val = 0;
+    localStats[type] = val;
+    renderStats();
+    // Pubblica su Gun — sincronizza con tutti i telefoni
+    if (typeof tripNode !== 'undefined') {
+        tripNode.get('stats').get(type).put(val);
+    }
+};
+
 // --- GUN.JS CONFIGURATION ---
-// Usiamo più relay per garantire che almeno uno funzioni
+// Relay aggiornati e funzionanti (i precedenti Heroku erano offline)
 const gun = Gun([
-    'https://gun-manhattan.herokuapp.com/gun',
-    'https://gun-ams1.herokuapp.com/gun',
-    'https://relay.peer.ooo/gun'
+    'https://gun-manhattan.euw.r.appspot.com/gun',
+    'wss://gundb-relay.glitch.me/gun',
+    'https://peer.wallie.io/gun',
+    'https://gun.eco/gun'
 ]);
 
-const tripNode = gun.get('vacanza2026_platjadaro_v2'); // Versione 2 per evitare conflitti precedenti
+const tripNode = gun.get('vacanza2026_platjadaro_v3'); // v3 per pulizia dati precedenti
 
 // Gestione connettività
 gun.on('hi', peer => {
@@ -480,45 +483,52 @@ gun.on('hi', peer => {
     }
 });
 
-// Ascolto aggiornamenti Stats
+// =====================================================
+// SINCRONIZZAZIONE IN TEMPO REALE - TUTTI I DISPOSITIVI
+// =====================================================
+
+// Ascolto aggiornamenti Stats (hype, patience, social)
 tripNode.get('stats').map().on((val, type) => {
-    if (val !== null) {
-        localStorage.setItem(`stat_${type}`, val.toString());
+    if (val !== null && typeof val === 'number') {
+        localStats[type] = val;
         renderStats();
     }
 });
 
 // Ascolto aggiornamenti Bingo
 tripNode.get('bingo').map().on((val, index) => {
-    localStorage.setItem(`bingo_item_${index}`, val);
     const cells = document.querySelectorAll('.bingo-cell');
     if (cells[index]) {
-        if (val === true) cells[index].classList.add('checked');
-        else cells[index].classList.remove('checked');
+        cells[index].classList.toggle('checked', val === true);
     }
+    localStorage.setItem(`bingo_item_${index}`, val);
 });
 
 // Ascolto aggiornamenti Cassa
 tripNode.get('cassa').on((data) => {
-    if (data) updateCassaUI(data.kia, data.punto, data.tolls);
+    if (data && (data.kia !== undefined || data.punto !== undefined || data.tolls !== undefined)) {
+        updateCassaUI(data.kia || 0, data.punto || 0, data.tolls || 0);
+    }
 });
 
-// Ascolto nuovi oggetti Checklist
+// Ascolto nuovi oggetti Checklist "Da non dimenticare"
 tripNode.get('checklist_items').map().on((val, item) => {
+    if (!item || item === '_' || item.startsWith('_')) return; // Ignora metadati Gun
     let customItems = JSON.parse(localStorage.getItem('custom_items') || '[]');
     if (val === true) {
         if (!customItems.includes(item) && !TRIP_CONFIG.group.items.includes(item)) {
             customItems.push(item);
         }
-    } else if (val === null) {
+    } else if (val === null || val === false) {
         customItems = customItems.filter(i => i !== item);
     }
     localStorage.setItem('custom_items', JSON.stringify(customItems));
     renderChecklist();
 });
 
-// Ascolto stati Checklist (checked/unchecked)
+// Ascolto stati Checklist (spuntato/non spuntato)
 tripNode.get('checklist_states').map().on((checked, item) => {
+    if (!item || item === '_' || item.startsWith('_')) return; // Ignora metadati Gun
     localStorage.setItem(`trip_item_${item}`, checked);
     renderChecklist();
 });
