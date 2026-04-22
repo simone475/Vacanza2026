@@ -4,66 +4,81 @@
  */
 
 let db; // Database SQLite globale
-let gun, tripNode; // Gun.js per sincronizzazione cloud
+let supabase; // Client Supabase per sincronizzazione cloud
 
-// Configurazione Gun.js
-function initGun() {
-    // Imposta inizialmente come arancione (connessione in corso)
+// Configurazione Supabase (Inserisci qui i tuoi dati)
+const SUPABASE_URL = 'https://ldvcjhlssqijhwonquiy.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkdmNqaGxzc3Fpamh3b25xdWl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDU5MDYsImV4cCI6MjA5MjQyMTkwNn0.TVTvnCQdjLPXVgXTQdfXPQw_EMV58NfUnGw6XzDsUnI';
+
+function initCloud() {
+    if (SUPABASE_URL.includes('TUO_PROGETTO')) {
+        console.warn("Supabase: Configura URL e Key in script.js per attivare il cloud!");
+        return;
+    }
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    console.log("Supabase: Client inizializzato");
+    
     const indicator = document.getElementById('sync-status');
     if (indicator) {
-        indicator.style.background = "#f59e0b"; // Arancione
-        indicator.style.boxShadow = "0 0 8px #f59e0b";
-        indicator.title = "Connessione al cloud in corso...";
+        indicator.style.background = "#22c55e"; // Verde fisso per Supabase (usa HTTPS)
+        indicator.style.boxShadow = "0 0 10px #22c55e";
+        indicator.title = "Cloud: Supabase Online";
     }
 
-    gun = Gun({
-        peers: [
-            'https://gun-manhattan.herokuapp.com/gun',
-            'https://relay.peer.ooo/gun',
-            'https://relay.gun.eco/gun',
-            'https://gun-us.herokuapp.com/gun',
-            'https://gun-matrix.herokuapp.com/gun',
-            'https://dletta.top/gun',
-            'https://gun-amsterdam.herokuapp.com/gun'
-        ],
-        localStorage: true
-    });
-    
-    tripNode = gun.get('vacanza_2026_FINAL_SYNC');
-    
-    let activePeers = 0;
-
-    // Heartbeat
-    setInterval(() => {
-        if (activePeers > 0) {
-            gun.get('heartbeat').put(Date.now());
+    // Listener Real-time per i cambiamenti
+    const channel = supabase.channel('schema-db-changes')
+    .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'roadtrip_sync' },
+        (payload) => {
+            handleCloudUpdate(payload.new);
         }
-    }, 20000);
+    )
+    .subscribe();
+}
 
-    window.checkCloud = () => {
-        alert(`Stato Cloud:\n- Peer attivi: ${activePeers}\n- Canale: FINAL_SYNC\n- DB: SQLite + GunStorage`);
-    };
-
-    gun.on('hi', peer => {
-        activePeers++;
-        if (indicator) {
-            indicator.style.background = "#22c55e"; // Verde
-            indicator.style.boxShadow = "0 0 10px #22c55e";
-        }
-    });
-
-    gun.on('bye', peer => {
-        activePeers--;
-        if (activePeers <= 0) {
-            activePeers = 0;
-            if (indicator) {
-                indicator.style.background = "#ef4444"; // Rosso
-                indicator.style.boxShadow = "0 0 10px #ef4444";
-            }
-        }
-    });
+async function pushToCloud(id, data) {
+    if (!supabase) return;
+    const { error } = await supabase
+        .from('roadtrip_sync')
+        .upsert({ id, payload: data, updated_at: new Date() });
     
-    console.log("Gun.js: Inizializzato");
+    if (error) console.error("Errore push cloud:", error);
+}
+
+async function handleCloudUpdate(data) {
+    if (!data || !data.id) return;
+    const { id, payload } = data;
+
+    if (id === 'cassa') {
+        db.run("UPDATE cassa SET kia = ?, punto = ?, tolls = ? WHERE id = 1", [payload.kia, payload.punto, payload.tolls]);
+        await saveDBToIndexedDB();
+        aggiornaRisultatoCassa(payload.kia || 0, payload.punto || 0, payload.tolls || 0);
+    } else if (id.startsWith('stat/')) {
+        const type = id.split('/')[1];
+        db.run("UPDATE stats SET value = ? WHERE id = ?", [payload, type]);
+        await saveDBToIndexedDB();
+        localStats[type] = payload;
+        renderStats();
+    } else if (id.startsWith('check/')) {
+        const itemName = id.split('/')[1];
+        if (payload.exists === false) {
+            db.run("DELETE FROM checklist WHERE item = ?", [itemName]);
+        } else {
+            db.run("INSERT OR IGNORE INTO checklist (item, is_checked, is_custom) VALUES (?, ?, 1)", [itemName, payload.checked ? 1 : 0]);
+            db.run("UPDATE checklist SET is_checked = ? WHERE item = ?", [payload.checked ? 1 : 0, itemName]);
+        }
+        await saveDBToIndexedDB();
+        renderChecklist();
+    } else if (id.startsWith('photo/')) {
+        const photoId = id.split('/')[1];
+        if (payload === null) {
+            delete sharedPhotos[photoId];
+        } else {
+            sharedPhotos[photoId] = { ...payload, id: photoId };
+        }
+        renderCloudPhotos();
+    }
 }
 
 async function initSQLite() {
@@ -199,14 +214,13 @@ window.salvaCassaCloud = async () => {
     const punto = parseFloat(document.getElementById('costPunto')?.value) || 0;
     const tolls = parseFloat(document.getElementById('costTolls')?.value) || 0;
 
-    // 1. Salva in SQLite (Locale)
+    // 1. Locale
     db.run("UPDATE cassa SET kia = ?, punto = ?, tolls = ? WHERE id = 1", [kia, punto, tolls]);
     await saveDBToIndexedDB();
     
-    // 2. Invia a Gun.js (Cloud)
-    tripNode.get('cassa').put({ kia, punto, tolls });
+    // 2. Supabase
+    pushToCloud('cassa', { kia, punto, tolls });
     
-    // 3. Aggiorna UI subito
     aggiornaRisultatoCassa(kia, punto, tolls);
 };
 
@@ -258,13 +272,13 @@ function renderChecklist() {
     });
 }
 
-// Funzione per salvare la spunta localmente (ora in SQLite) e sincronizzare
+// Funzione per salvare la spunta localmente e sincronizzare
 window.sendCheckToCloud = async function(item, status) {
     db.run("UPDATE checklist SET is_checked = ? WHERE item = ?", [status ? 1 : 0, item]);
     await saveDBToIndexedDB();
     
-    // Sincronizza stato spunta nel cloud
-    tripNode.get('checklist_states').get(item).put(status);
+    // Sincronizza su Supabase
+    pushToCloud(`check/${item}`, { exists: true, checked: status });
     
     renderChecklist();
 };
@@ -275,12 +289,10 @@ window.addItem = async function() {
     const val = input.value.trim();
     if (val) {
         try {
-            // 1. Locale SQLite
             db.run("INSERT INTO checklist (item, is_checked, is_custom) VALUES (?, 0, 1)", [val]);
             await saveDBToIndexedDB();
             
-            // 2. Cloud Gun
-            tripNode.get('custom_items').get(val).put(true);
+            pushToCloud(`check/${val}`, { exists: true, checked: false });
             
             input.value = '';
             renderChecklist();
@@ -292,13 +304,10 @@ window.addItem = async function() {
 
 // Funzione per eliminare un oggetto
 window.removeItem = async function(item) {
-    // 1. Locale SQLite
     db.run("DELETE FROM checklist WHERE item = ?", [item]);
     await saveDBToIndexedDB();
     
-    // 2. Cloud Gun
-    tripNode.get('custom_items').get(item).put(null);
-    tripNode.get('checklist_states').get(item).put(null);
+    pushToCloud(`check/${item}`, { exists: false });
     
     renderChecklist();
 };
@@ -483,9 +492,9 @@ const initGeolocation = () => {
 
 // INIZIALIZZAZIONE CON FETCH
 const initApp = async () => {
-    // Inizializza SQLite e Gun.js
+    // Inizializza SQLite e Supabase
     await initSQLite();
-    initGun();
+    initCloud();
 
     try {
         const res = await fetch('data.json');
@@ -494,60 +503,16 @@ const initApp = async () => {
             console.log("Dati caricati da JSON");
         }
     } catch(e) {
-        console.warn("Esecuzione locale senza server, utilizzo i dati di default", e);
+        console.warn("Esecuzione locale senza server", e);
     }
     
-    // --- SINCRONIZZAZIONE CLOUD -> SQLITE (Ascoltatori) ---
-
-    // 1. Sincronizzazione Statistiche
-    tripNode.get('stats').map().on(async (val, type) => {
-        if (val !== null && typeof val === 'number') {
-            db.run("UPDATE stats SET value = ? WHERE id = ?", [val, type]);
-            await saveDBToIndexedDB();
-            localStats[type] = val;
-            renderStats();
-        }
-    });
-
-    // 2. Sincronizzazione Cassa
-    tripNode.get('cassa').on(async (data) => {
+    // Caricamento dati iniziali da Supabase (Opzionale, SQLite è primario)
+    if (supabase) {
+        const { data } = await supabase.from('roadtrip_sync').select('*');
         if (data) {
-            db.run("UPDATE cassa SET kia = ?, punto = ?, tolls = ? WHERE id = 1", [data.kia, data.punto, data.tolls]);
-            await saveDBToIndexedDB();
-            aggiornaRisultatoCassa(data.kia || 0, data.punto || 0, data.tolls || 0);
+            data.forEach(row => handleCloudUpdate(row));
         }
-    });
-
-    // 3. Sincronizzazione Checklist (Aggiunta/Rimozione)
-    tripNode.get('custom_items').map().on(async (exists, name) => {
-        if (!name || name.startsWith('_')) return;
-        if (exists === true) {
-            db.run("INSERT OR IGNORE INTO checklist (item, is_checked, is_custom) VALUES (?, 0, 1)", [name]);
-        } else {
-            db.run("DELETE FROM checklist WHERE item = ?", [name]);
-        }
-        await saveDBToIndexedDB();
-        renderChecklist();
-    });
-
-    // 4. Sincronizzazione Checklist (Spunte)
-    tripNode.get('checklist_states').map().on(async (val, name) => {
-        if (!name || name.startsWith('_')) return;
-        db.run("UPDATE checklist SET is_checked = ? WHERE item = ?", [val ? 1 : 0, name]);
-        await saveDBToIndexedDB();
-        renderChecklist();
-    });
-
-    // 5. Sincronizzazione Foto Cloud
-    tripNode.get('cloud_photos').map().on((photo, id) => {
-        if (!id || id === '_' || id.startsWith('_')) return;
-        if (photo && photo.data) {
-            sharedPhotos[id] = { ...photo, id };
-        } else {
-            delete sharedPhotos[id];
-        }
-        renderCloudPhotos();
-    });
+    }
 
     // Caricamento dati iniziali da SQLite per UI
     try {
@@ -678,17 +643,16 @@ window.handlePhotoUpload = async (e) => {
             const photoObj = {
                 data: compressed,
                 by: userName,
-                ts: Date.now(),
-                id: photoId
+                ts: Date.now()
             };
 
-            // 1. Salvataggio locale (per velocità)
-            sharedPhotos[photoId] = photoObj;
+            // 1. Locale
+            sharedPhotos[photoId] = { ...photoObj, id: photoId };
             localStorage.setItem('local_photos', JSON.stringify(sharedPhotos));
             renderCloudPhotos();
 
-            // 2. Sincronizzazione Cloud
-            tripNode.get('cloud_photos').get(photoId).put(photoObj);
+            // 2. Supabase
+            pushToCloud(`photo/${photoId}`, photoObj);
 
         } catch (err) {
             console.error('Errore compressione foto:', err);
@@ -776,8 +740,8 @@ window.deleteCloudPhoto = (id) => {
     delete sharedPhotos[id];
     localStorage.setItem('local_photos', JSON.stringify(sharedPhotos));
     
-    // 2. Cloud
-    tripNode.get('cloud_photos').get(id).put(null);
+    // 2. Supabase
+    pushToCloud(`photo/${id}`, null);
     
     renderCloudPhotos();
 };
@@ -806,12 +770,12 @@ window.updateStat = async (type, change) => {
     localStats[type] = val;
     renderStats();
     
-    // 1. Salva in SQLite
+    // 1. SQLite
     db.run("UPDATE stats SET value = ? WHERE id = ?", [val, type]);
     await saveDBToIndexedDB();
 
-    // 2. Pubblica su Gun.js
-    tripNode.get('stats').get(type).put(val);
+    // 2. Supabase
+    pushToCloud(`stat/${type}`, val);
 };
 
 // Caricamento foto locali all'avvio
