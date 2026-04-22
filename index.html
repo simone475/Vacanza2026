@@ -155,11 +155,13 @@
             <div class="roadmap-stop">
                 <div class="stop-marker"></div>
                 <div class="card">
-                    <h2>Da non dimenticare</h2>
+                    <h2>📋 Da non dimenticare</h2>
                     
-                    <div class="input-group" style="margin-bottom: 15px;">
-                        <input type="text" id="itemInput" placeholder="Aggiungi qualcosa...">
-                        <button class="btn btn-blue" onclick="addItem()" style="margin-left: 10px; width: auto; padding: 0 15px;">+</button>
+                    <div class="checklist-input-group">
+                        <input type="text" id="itemInput" placeholder="Aggiungi un elemento..." class="checklist-input">
+                        <button class="btn btn-blue btn-add-item" onclick="addItem()" title="Aggiungi">
+                            <span style="font-size: 1.2rem;">✓</span>
+                        </button>
                     </div>
 
                     <div id="checkList" class="checklist-container">

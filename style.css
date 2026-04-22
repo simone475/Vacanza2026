@@ -260,6 +260,59 @@ input[type="checkbox"] {
 .pt-3 { padding-top: 15px; }
 .border-t { border-top: 1px solid rgba(255, 255, 255, 0.1); }
 
+/* --- CHECKLIST INPUT --- */
+.checklist-input-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    align-items: center;
+}
+
+.checklist-input {
+    flex: 1;
+    padding: 12px 16px;
+    font-size: 1rem;
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.08);
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: inherit;
+}
+
+.checklist-input:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.12);
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 16px rgba(59, 130, 246, 0.3);
+    transform: translateY(-2px);
+}
+
+.checklist-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.btn-add-item {
+    padding: 12px 20px !important;
+    min-width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-add-item:hover {
+    transform: scale(1.08) translateY(-2px);
+    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+}
+
+.btn-add-item:active {
+    transform: scale(0.96);
+}
+
 /* --- CHECKLIST (PRETTIFIED) --- */
 .checklist-item {
     display: flex;
