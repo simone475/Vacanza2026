@@ -3,8 +3,8 @@
  * Configurazione e logica per il viaggio di gruppo
  */
 
-let db; // Database SQLite globale
-let supabase = null; // Client Supabase per sincronizzazione cloud
+var db; // Database SQLite globale (var allows redeclaration on reload)
+var supabase; // Client Supabase per sincronizzazione cloud (var allows redeclaration on reload)
 
 // Configurazione Supabase (Inserisci qui i tuoi dati)
 const SUPABASE_URL = 'https://ldvcjhlssqijhwonquiy.supabase.co';
