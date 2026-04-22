@@ -5,12 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Road Trip Hub 🚀</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>🚀</text></svg>">
+    <meta name="description" content="Road Trip Hub - Organizza il tuo viaggio di gruppo con cassa condivisa, checklist e foto">
+    <meta name="theme-color" content="#0f172a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Road Trip">
     <meta name="mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%230f172a' width='180' height='180'/><text y='135' font-size='120' text-anchor='middle' x='90'>🚀</text></svg>">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed:', err));
+        }
+    </script>
 
 </head>
 <body>
