@@ -70,11 +70,11 @@ window.salvaCassaCloud = () => {
     const punto = parseFloat(document.getElementById('costPunto')?.value) || 0;
     const tolls = parseFloat(document.getElementById('costTolls')?.value) || 0;
 
-    // Aggiorna UI localmente subito
+    // Salva localmente
+    localStorage.setItem('trip_cassa', JSON.stringify({ kia, punto, tolls }));
+    
+    // Aggiorna UI subito
     aggiornaRisultatoCassa(kia, punto, tolls);
-
-    // Invia al cloud — tutti lo vedranno in tempo reale
-    tripNode.get('cassa').put({ kia, punto, tolls });
 };
 
 const aggiornaRisultatoCassa = (kia, punto, tolls) => {
@@ -124,9 +124,10 @@ function renderChecklist() {
     });
 }
 
-// Funzione per inviare la spunta a tutti
+// Funzione per salvare la spunta localmente
 window.sendCheckToCloud = function(item, status) {
-    tripNode.get('checklist_states').get(item).put(status);
+    localStorage.setItem(`trip_item_${item}`, status);
+    renderChecklist();
 };
 
 // Funzione per aggiungere nuovi oggetti
@@ -134,15 +135,23 @@ window.addItem = function() {
     const input = document.getElementById('itemInput');
     const val = input.value.trim();
     if (val) {
-        tripNode.get('custom_items').get(val).put(true);
+        let custom = JSON.parse(localStorage.getItem('custom_items') || "[]");
+        if (!custom.includes(val)) {
+            custom.push(val);
+            localStorage.setItem('custom_items', JSON.stringify(custom));
+        }
         input.value = '';
+        renderChecklist();
     }
 };
 
-// Funzione per eliminare per tutti
+// Funzione per eliminare un oggetto
 window.removeItem = function(item) {
-    tripNode.get('custom_items').get(item).put(null);
-    tripNode.get('checklist_states').get(item).put(null);
+    let custom = JSON.parse(localStorage.getItem('custom_items') || "[]");
+    custom = custom.filter(i => i !== item);
+    localStorage.setItem('custom_items', JSON.stringify(custom));
+    localStorage.removeItem(`trip_item_${item}`);
+    renderChecklist();
 };
 
 // 6. METEO
@@ -233,14 +242,8 @@ window.toggleBingo = (el) => {
     const idx = el.getAttribute('data-idx');
     const isChecked = !el.classList.contains('checked');
     
-    // Invia al cloud Gun
-    if (typeof tripNode !== 'undefined') {
-        tripNode.get('bingo').get(idx).put(isChecked);
-    } else {
-        // Fallback locale se non c'è internet
-        el.classList.toggle('checked', isChecked);
-        localStorage.setItem(`bingo_item_${idx}`, isChecked);
-    }
+    el.classList.toggle('checked', isChecked);
+    localStorage.setItem(`bingo_item_${idx}`, isChecked);
 };
 
 // 10. RENDER EMERGENCY
@@ -341,6 +344,17 @@ const initApp = async () => {
         console.warn("Esecuzione locale senza server, utilizzo i dati di default", e);
     }
     
+    // Caricamento dati salvati in localStorage
+    const savedCassa = JSON.parse(localStorage.getItem('trip_cassa') || "null");
+    if (savedCassa) {
+        aggiornaRisultatoCassa(savedCassa.kia, savedCassa.punto, savedCassa.tolls);
+    }
+
+    const savedStats = JSON.parse(localStorage.getItem('trip_stats') || "null");
+    if (savedStats) {
+        Object.assign(localStats, savedStats);
+    }
+
     setInterval(updateCountdown, 60000); 
     updateCountdown();
     fetchWeather();
@@ -449,14 +463,16 @@ window.handlePhotoUpload = async (e) => {
             const compressed = await compressImage(file);
             const photoId = `photo_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
 
-            if (typeof tripNode !== 'undefined') {
-                tripNode.get('cloud_photos').get(photoId).put({
-                    data: compressed,
-                    by: userName,
-                    ts: Date.now(),
-                    id: photoId
-                });
-            }
+            // Salvataggio locale
+            sharedPhotos[photoId] = {
+                data: compressed,
+                by: userName,
+                ts: Date.now(),
+                id: photoId
+            };
+            localStorage.setItem('local_photos', JSON.stringify(sharedPhotos));
+            renderCloudPhotos();
+
         } catch (err) {
             console.error('Errore compressione foto:', err);
         }
@@ -469,7 +485,6 @@ window.handlePhotoUpload = async (e) => {
         if (btnText) btnText.innerText = `📸 Carica Foto`;
     }, 800);
 
-    // Reset input
     e.target.value = '';
 };
 
@@ -540,10 +555,8 @@ window.deleteLightboxPhoto = () => {
 
 // --- Elimina Foto ---
 window.deleteCloudPhoto = (id) => {
-    if (typeof tripNode !== 'undefined') {
-        tripNode.get('cloud_photos').get(id).put(null);
-    }
     delete sharedPhotos[id];
+    localStorage.setItem('local_photos', JSON.stringify(sharedPhotos));
     renderCloudPhotos();
 };
 
@@ -570,118 +583,13 @@ window.updateStat = (type, change) => {
     if (val < 0) val = 0;
     localStats[type] = val;
     renderStats();
-    // Pubblica su Gun — sincronizza con tutti i telefoni
-    if (typeof tripNode !== 'undefined') {
-        tripNode.get('stats').get(type).put(val);
-    }
+    
+    // Salvataggio locale
+    localStorage.setItem('trip_stats', JSON.stringify(localStats));
 };
 
-// --- GUN.JS CONFIGURATION ---
-// Relay aggiornati e funzionanti (i precedenti Heroku erano offline)
-// 1. Peer più stabili e veloci
-const gun = Gun([
-    'https://gun-manhattan.herokuapp.com/gun',
-    'https://relay.peer.ooo/gun',
-    'https://gun-us.herokuapp.com/gun' // Terzo peer di backup
-]);
-
-const tripNode = gun.get('vacanza_2026_test_DEF'); // Database test DEF reset
-
-// Gestione connettività
-gun.on('hi', peer => {
-    console.log("Connesso al relay:", peer);
-    const indicator = document.getElementById('sync-status');
-    if (indicator) {
-        indicator.style.background = "#22c55e";
-        indicator.style.boxShadow = "0 0 8px #22c55e";
-    }
-});
-
-// =====================================================
-// SINCRONIZZAZIONE IN TEMPO REALE - TUTTI I DISPOSITIVI
-// =====================================================
-
-// Ascolto aggiornamenti Stats (hype, patience, social)
-tripNode.get('stats').map().on((val, type) => {
-    if (val !== null && typeof val === 'number') {
-        localStats[type] = val;
-        renderStats();
-    }
-});
-
-// Ascolto aggiornamenti Bingo dagli altri telefoni
-tripNode.get('bingo').map().on((val, idx) => {
-    if (!idx || idx === '_' || idx.startsWith('_')) return;
-    
-    // Cerchiamo la casella tramite l'attributo data-idx
-    const btn = document.querySelector(`[data-idx="${idx}"]`);
-    if (btn) {
-        btn.classList.toggle('checked', val === true);
-    }
-    
-    // Salviamo anche localmente per quando riapri il sito
-    localStorage.setItem(`bingo_item_${idx}`, val);
-});
-
-// Riceve i dati dagli altri telefoni in tempo reale
-tripNode.get('cassa').on((data) => {
-    if (!data) return;
-    
-    // Aggiorna i campi di input
-    const elKia = document.getElementById('costKia');
-    const elPunto = document.getElementById('costPunto');
-    const elTolls = document.getElementById('costTolls');
-
-    // Li aggiorniamo solo se l'utente non ci sta scrivendo sopra in questo momento
-    if (document.activeElement !== elKia)   elKia.value = data.kia || "";
-    if (document.activeElement !== elPunto) elPunto.value = data.punto || "";
-    if (document.activeElement !== elTolls)  elTolls.value = data.tolls || "";
-    
-    // Ricalcola il totale a testa
-    aggiornaRisultatoCassa(data.kia || 0, data.punto || 0, data.tolls || 0);
-});
-
-
-
-
-
-// Ascolto foto del cloud (da tutti i dispositivi)
-tripNode.get('cloud_photos').map().on((photo, id) => {
-    if (!id || id === '_' || id.startsWith('_')) return;
-    if (photo && photo.data) {
-        sharedPhotos[id] = { ...photo, id };
-    } else {
-        delete sharedPhotos[id];
-    }
-    renderCloudPhotos();
-});
-
-// --- ASCOLTATORI CLOUD (Quelli che ricevono dagli altri) ---
-
-// Sente se qualcuno aggiunge o elimina oggetti
-tripNode.get('custom_items').map().on((exists, name) => {
-    if (!name || name.startsWith('_')) return;
-    let custom = JSON.parse(localStorage.getItem('custom_items') || "[]");
-    if (exists === true) {
-        if (!custom.includes(name)) custom.push(name);
-    } else {
-        custom = custom.filter(i => i !== name);
-        localStorage.removeItem(`trip_item_${name}`);
-    }
-    localStorage.setItem('custom_items', JSON.stringify(custom));
-    renderChecklist();
-});
-
-// Sente se qualcuno spunta un oggetto
-tripNode.get('checklist_states').map().on((val, name) => {
-    if (!name || name.startsWith('_')) return;
-    localStorage.setItem(`trip_item_${name}`, val);
-    
-    // Aggiornamento grafico rapido senza rifare tutto il render
-    const cb = document.getElementById(`check-${name}`);
-    const txt = document.getElementById(`text-${name}`);
-    if (cb) cb.checked = val;
-    if (txt) val ? txt.classList.add('strikethrough') : txt.classList.remove('strikethrough');
-});
+// Caricamento foto locali all'avvio
+const savedPhotos = JSON.parse(localStorage.getItem('local_photos') || "{}");
+Object.assign(sharedPhotos, savedPhotos);
 
 document.addEventListener('DOMContentLoaded', initApp);
