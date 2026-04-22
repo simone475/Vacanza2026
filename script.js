@@ -3,6 +3,71 @@
  * Configurazione e logica per il viaggio di gruppo
  */
 
+let db; // Database SQLite globale
+
+async function initSQLite() {
+    try {
+        const SQL = await initSqlJs({
+            locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
+        });
+
+        // Carica il database esistente da IndexedDB
+        const savedDB = await loadDBFromIndexedDB();
+        if (savedDB) {
+            db = new SQL.Database(new Uint8Array(savedDB));
+            console.log("SQLite: Database caricato da IndexedDB");
+        } else {
+            db = new SQL.Database();
+            // Inizializzazione schema per la prima volta
+            db.run(`
+                CREATE TABLE IF NOT EXISTS stats (id TEXT PRIMARY KEY, value INTEGER);
+                INSERT OR IGNORE INTO stats VALUES ('hype', 100), ('patience', 100), ('social', 100);
+                
+                CREATE TABLE IF NOT EXISTS cassa (id INTEGER PRIMARY KEY, kia REAL, punto REAL, tolls REAL);
+                INSERT OR IGNORE INTO cassa VALUES (1, 0, 0, 0);
+                
+                CREATE TABLE IF NOT EXISTS checklist (item TEXT PRIMARY KEY, is_checked INTEGER, is_custom INTEGER);
+            `);
+            console.log("SQLite: Nuovo database creato");
+            await saveDBToIndexedDB();
+        }
+    } catch (err) {
+        console.error("Errore inizializzazione SQLite:", err);
+    }
+}
+
+// Persistenza Database via IndexedDB
+function loadDBFromIndexedDB() {
+    return new Promise((resolve) => {
+        const request = indexedDB.open("RoadTripDB", 1);
+        request.onupgradeneeded = (e) => e.target.result.createObjectStore("files");
+        request.onsuccess = (e) => {
+            const idb = e.target.result;
+            const transaction = idb.transaction(["files"], "readonly");
+            const store = transaction.objectStore("files");
+            const getRequest = store.get("trip.sqlite");
+            getRequest.onsuccess = () => resolve(getRequest.result);
+            getRequest.onerror = () => resolve(null);
+        };
+        request.onerror = () => resolve(null);
+    });
+}
+
+async function saveDBToIndexedDB() {
+    if (!db) return;
+    const data = db.export();
+    return new Promise((resolve) => {
+        const request = indexedDB.open("RoadTripDB", 1);
+        request.onsuccess = (e) => {
+            const idb = e.target.result;
+            const transaction = idb.transaction(["files"], "readwrite");
+            transaction.objectStore("files").put(data, "trip.sqlite");
+            transaction.oncomplete = () => resolve();
+        };
+    });
+}
+
+
 // 1. CONFIGURAZIONE (Supporto per data.json)
 let TRIP_CONFIG = {
     destination: {
@@ -65,13 +130,14 @@ window.naviga = (platform) => {
 };
 
 // 4. CASSA CARBURANTE (Real-time)
-window.salvaCassaCloud = () => {
+window.salvaCassaCloud = async () => {
     const kia = parseFloat(document.getElementById('costKia')?.value) || 0;
     const punto = parseFloat(document.getElementById('costPunto')?.value) || 0;
     const tolls = parseFloat(document.getElementById('costTolls')?.value) || 0;
 
-    // Salva localmente
-    localStorage.setItem('trip_cassa', JSON.stringify({ kia, punto, tolls }));
+    // Salva in SQLite
+    db.run("UPDATE cassa SET kia = ?, punto = ?, tolls = ? WHERE id = 1", [kia, punto, tolls]);
+    await saveDBToIndexedDB();
     
     // Aggiorna UI subito
     aggiornaRisultatoCassa(kia, punto, tolls);
@@ -99,17 +165,18 @@ function renderChecklist() {
     if (!listDiv) return;
     listDiv.innerHTML = '';
 
-    // Uniamo oggetti fissi e quelli aggiunti extra
-    const extra = JSON.parse(localStorage.getItem('custom_items') || "[]");
-    const allItems = [...new Set([...extra])];
+    // Recupera oggetti da SQLite
+    const res = db.exec("SELECT item, is_checked, is_custom FROM checklist");
+    const allItems = res.length > 0 ? res[0].values : [];
 
     if (allItems.length === 0) {
         listDiv.innerHTML = '<p style="text-align:center; color:rgba(255,255,255,0.4); font-size:0.9rem; padding:20px;">La lista è vuota.<br>Aggiungi qualcosa qui sopra! 👆</p>';
         return;
     }
 
-    allItems.forEach(item => {
-        const isChecked = localStorage.getItem(`trip_item_${item}`) === 'true';
+    allItems.forEach(row => {
+        const item = row[0];
+        const isChecked = row[1] === 1;
         const div = document.createElement('div');
         div.className = "checklist-item";
         div.innerHTML = `
@@ -124,33 +191,33 @@ function renderChecklist() {
     });
 }
 
-// Funzione per salvare la spunta localmente
-window.sendCheckToCloud = function(item, status) {
-    localStorage.setItem(`trip_item_${item}`, status);
+// Funzione per salvare la spunta localmente (ora in SQLite)
+window.sendCheckToCloud = async function(item, status) {
+    db.run("UPDATE checklist SET is_checked = ? WHERE item = ?", [status ? 1 : 0, item]);
+    await saveDBToIndexedDB();
     renderChecklist();
 };
 
 // Funzione per aggiungere nuovi oggetti
-window.addItem = function() {
+window.addItem = async function() {
     const input = document.getElementById('itemInput');
     const val = input.value.trim();
     if (val) {
-        let custom = JSON.parse(localStorage.getItem('custom_items') || "[]");
-        if (!custom.includes(val)) {
-            custom.push(val);
-            localStorage.setItem('custom_items', JSON.stringify(custom));
+        try {
+            db.run("INSERT INTO checklist (item, is_checked, is_custom) VALUES (?, 0, 1)", [val]);
+            await saveDBToIndexedDB();
+            input.value = '';
+            renderChecklist();
+        } catch (e) {
+            alert("Oggetto già presente!");
         }
-        input.value = '';
-        renderChecklist();
     }
 };
 
 // Funzione per eliminare un oggetto
-window.removeItem = function(item) {
-    let custom = JSON.parse(localStorage.getItem('custom_items') || "[]");
-    custom = custom.filter(i => i !== item);
-    localStorage.setItem('custom_items', JSON.stringify(custom));
-    localStorage.removeItem(`trip_item_${item}`);
+window.removeItem = async function(item) {
+    db.run("DELETE FROM checklist WHERE item = ?", [item]);
+    await saveDBToIndexedDB();
     renderChecklist();
 };
 
@@ -334,6 +401,9 @@ const initGeolocation = () => {
 
 // INIZIALIZZAZIONE CON FETCH
 const initApp = async () => {
+    // Inizializza SQLite prima di tutto
+    await initSQLite();
+
     try {
         const res = await fetch('data.json');
         if (res.ok) {
@@ -344,16 +414,24 @@ const initApp = async () => {
         console.warn("Esecuzione locale senza server, utilizzo i dati di default", e);
     }
     
-    // Caricamento dati salvati in localStorage
-    const savedCassa = JSON.parse(localStorage.getItem('trip_cassa') || "null");
-    if (savedCassa) {
-        aggiornaRisultatoCassa(savedCassa.kia, savedCassa.punto, savedCassa.tolls);
-    }
+    // Caricamento dati da SQLite per Cassa
+    try {
+        const cassaRes = db.exec("SELECT kia, punto, tolls FROM cassa WHERE id = 1");
+        if (cassaRes.length > 0) {
+            const row = cassaRes[0].values[0];
+            aggiornaRisultatoCassa(row[0] || 0, row[1] || 0, row[2] || 0);
+        }
+    } catch (e) { console.warn("Dati cassa non trovati in DB", e); }
 
-    const savedStats = JSON.parse(localStorage.getItem('trip_stats') || "null");
-    if (savedStats) {
-        Object.assign(localStats, savedStats);
-    }
+    // Caricamento dati da SQLite per Stats
+    try {
+        const statsRes = db.exec("SELECT id, value FROM stats");
+        if (statsRes.length > 0) {
+            statsRes[0].values.forEach(row => {
+                localStats[row[0]] = row[1];
+            });
+        }
+    } catch (e) { console.warn("Dati stats non trovati in DB", e); }
 
     setInterval(updateCountdown, 60000); 
     updateCountdown();
@@ -576,7 +654,7 @@ const renderStats = () => {
     });
 };
 
-window.updateStat = (type, change) => {
+window.updateStat = async (type, change) => {
     let val = localStats[type];
     val += change;
     if (val > 100) val = 100;
@@ -584,8 +662,9 @@ window.updateStat = (type, change) => {
     localStats[type] = val;
     renderStats();
     
-    // Salvataggio locale
-    localStorage.setItem('trip_stats', JSON.stringify(localStats));
+    // Salva in SQLite
+    db.run("UPDATE stats SET value = ? WHERE id = ?", [val, type]);
+    await saveDBToIndexedDB();
 };
 
 // Caricamento foto locali all'avvio
