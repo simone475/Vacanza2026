@@ -120,7 +120,7 @@ const renderChecklist = () => {
                 <input type="checkbox" 
                        id="check-${item}"
                        ${isChecked ? 'checked' : ''} 
-                       onchange="toggleCheck('${item.replace(/'/g, "\\'")}', this.checked)"
+                       onchange="tripNode.get('checklist_states').get('${item.replace(/'/g, "\\'")}').put(this.checked)"
                        class="checklist-checkbox">
                 <span id="text-${item}" class="${isChecked ? 'strikethrough' : 'text-normal'}">${item}</span>
             </label>
@@ -697,26 +697,28 @@ tripNode.get('checklist_items').map().on((val, item) => {
     renderChecklist();
 });
 
-// Ascolto stati Checklist (spuntato/non spuntato dagli altri telefoni)
+// Ascolta i cambiamenti della checklist da altri dispositivi
 tripNode.get('checklist_states').map().on((val, item) => {
     if (!item || item === '_' || item.startsWith('_')) return;
-    
-    // 1. Salviamo nello storage per persistenza al ricaricamento
+
+    // 1. Aggiorna la memoria locale del telefono
     localStorage.setItem(`trip_item_${item}`, val);
-    
-    // 2. Aggiorniamo la checkbox se esiste nel DOM
+
+    // 2. Trova la checkbox nella pagina e aggiornala visivamente
     const cb = document.getElementById(`check-${item}`);
-    if (cb) cb.checked = val;
-    
-    // 3. Logica per barrare il testo
+    if (cb) {
+        cb.checked = val;
+    }
+
+    // 3. Applica l'effetto barrato al testo
     const txt = document.getElementById(`text-${item}`);
     if (txt) {
-        if (val) {
-            txt.classList.add('strikethrough');
-            txt.classList.remove('text-normal');
+        if (val === true) {
+            txt.style.textDecoration = "line-through";
+            txt.style.opacity = "0.5";
         } else {
-            txt.classList.remove('strikethrough');
-            txt.classList.add('text-normal');
+            txt.style.textDecoration = "none";
+            txt.style.opacity = "1";
         }
     }
 });
