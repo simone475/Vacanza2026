@@ -1,15 +1,13 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Road Trip Hub 🚀</title>
     <link rel="stylesheet" href="style.css">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
-    <link rel="apple-touch-icon" href="icon.png">
-    <link rel="icon" type="image/png" href="icon.png">
     <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
 </head>
 <body>
@@ -17,16 +15,32 @@
         <header>
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <h1 class="floating">Si Parte!</h1>
-                <div id="sync-status" title="Sincronizzazione attiva" style="width: 12px; height: 12px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981;"></div>
+                <div id="sync-status" title="Sincronizzazione attiva" style="width: 10px; height: 10px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981; margin-bottom: 15px;"></div>
             </div>
             <p id="countdown">Caricamento...</p>
+            <div id="weather" class="weather-widget" title="Meteo attuale a Platja d'Aro">
+                <span style="font-size: 0.9rem; margin-right: 8px; font-weight: bold; color: var(--text-main);">Platja d'Aro:</span>
+                <span id="weather-icon">⏳</span>
+                <span id="weather-temp">--°C</span>
+            </div>
+            <p id="weather-suggestion" style="font-size: 0.85rem; color: var(--text-dim); margin-top: 10px; text-align: center; font-weight: bold;"></p>
         </header>
 
         <div class="roadmap-container">
+            <!-- Tappa 1 -->
             <div class="roadmap-stop">
-                <div class="stop-marker marker-blue"></div>
+                <div class="stop-marker"></div>
                 <div class="card">
-                    <h2>Mettiti in rotta</h2>
+                    <h2>El viaje: Platja d'Aro</h2>
+                    <div class="progress-container mt-3" style="margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 5px; color: var(--text-dim);">
+                            <span>Tragitto:</span>
+                            <span id="distance-text" style="font-weight: bold; color: white;">Calcolo in corso...</span>
+                        </div>
+                        <div style="height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                            <div id="distance-bar" style="height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent-blue), var(--accent-road)); transition: width 1s;"></div>
+                        </div>
+                    </div>
                     <div class="nav-grid">
                         <button onclick="naviga('google')" class="btn btn-white">Google Maps</button>
                         <button onclick="naviga('waze')" class="btn btn-blue">Waze</button>
@@ -34,47 +48,149 @@
                 </div>
             </div>
 
+            <!-- La Squadra -->
             <div class="roadmap-stop">
-                <div class="stop-marker marker-orange"></div>
+                <div class="stop-marker marker-green"></div>
                 <div class="card">
-                    <h2>Cassa Carburante (Real-time)</h2>
-                    <div class="input-group">
-                        <label>Litri Benzina:</label>
-                        <input type="number" id="input-litri" placeholder="0" oninput="salvaCassaCloud()">
+                    <h2>La Squadra</h2>
+                    <div id="teamContainer" class="team-grid"></div>
+                </div>
+            </div>
+
+            <!-- Stato della Squadra -->
+            <div class="roadmap-stop">
+                <div class="stop-marker"></div>
+                <div class="card">
+                    <h2>Stato della Squadra</h2>
+                    <div class="stat-container">
+                        <div class="stat-header">
+                            <span>Livello di Hype 🔥</span>
+                            <span id="val-hype">100%</span>
+                        </div>
+                        <div class="stat-controls">
+                            <button onclick="updateStat('hype', -10)" class="stat-btn">−</button>
+                            <div class="stat-bar-bg">
+                                <div id="bar-hype" class="stat-bar" style="width: 100%; background: #fbbf24;"></div>
+                            </div>
+                            <button onclick="updateStat('hype', 10)" class="stat-btn">+</button>
+                        </div>
                     </div>
-                    <div class="input-group">
-                        <label>Prezzo al litro (€):</label>
-                        <input type="number" id="input-prezzo" placeholder="1.85" oninput="salvaCassaCloud()">
+                    
+                    <div class="stat-container mt-3">
+                        <div class="stat-header">
+                            <span>Pazienza del Pilota 🧘</span>
+                            <span id="val-patience">100%</span>
+                        </div>
+                        <div class="stat-controls">
+                            <button onclick="updateStat('patience', -10)" class="stat-btn">−</button>
+                            <div class="stat-bar-bg">
+                                <div id="bar-patience" class="stat-bar" style="width: 100%; background: #34d399;"></div>
+                            </div>
+                            <button onclick="updateStat('patience', 10)" class="stat-btn">+</button>
+                        </div>
                     </div>
-                    <div class="input-group">
-                        <label>Pedaggi (€):</label>
-                        <input type="number" id="input-tolls" placeholder="0" oninput="salvaCassaCloud()">
+
+                    <div class="stat-container mt-3">
+                        <div class="stat-header">
+                            <span>Batteria Sociale 🔋</span>
+                            <span id="val-social">100%</span>
+                        </div>
+                        <div class="stat-controls">
+                            <button onclick="updateStat('social', -10)" class="stat-btn">−</button>
+                            <div class="stat-bar-bg">
+                                <div id="bar-social" class="stat-bar" style="width: 100%; background: #60a5fa;"></div>
+                            </div>
+                            <button onclick="updateStat('social', 10)" class="stat-btn">+</button>
+                        </div>
                     </div>
-                    <div class="result-box">
+                </div>
+            </div>
+
+            <!-- Tappa 2 -->
+            <div class="roadmap-stop">
+                <div class="stop-marker marker-pink"></div>
+                <div class="card">
+                    <h2>Cassa Carburante 💰</h2>
+                    <div class="input-group">
+                        <input type="number" id="input-kia" placeholder="Litri benzina" oninput="salvaCassaCloud()">
+                    </div>
+                    <div class="input-group" style="margin-top: 10px;">
+                        <input type="number" id="input-punto" placeholder="Prezzo al litro (€)" oninput="salvaCassaCloud()">
+                    </div>
+                    <div class="input-group" style="margin-top: 10px;">
+                        <input type="number" id="input-tolls" placeholder="Pedaggi (€)" oninput="salvaCassaCloud()">
+                    </div>
+                    <div class="result-box" style="margin-top: 15px;">
                         <span>Quota a testa:</span>
                         <span>€<span id="result">0</span></span>
                     </div>
                 </div>
             </div>
 
+            <!-- Tappa 3 -->
             <div class="roadmap-stop">
                 <div class="stop-marker marker-green"></div>
                 <div class="card">
-                    <h2>Checklist di Gruppo</h2>
-                    <div id="checkList"></div>
+                    <h2>Musica per il viaggio</h2>
+                    <iframe style="border-radius:12px" src="https://open.spotify.com/embed/playlist/7KPAJilg6fPcqNfFwDuA68?utm_source=generator" width="100%" height="152" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
                 </div>
             </div>
 
+            <!-- Tappa 4 -->
+            <div class="roadmap-stop">
+                <div class="stop-marker"></div>
+                <div class="card">
+                    <h2>Da non dimenticare</h2>
+                    <div class="filter-buttons">
+                        <button id="btn-filter-all" onclick="setFilter('all')" class="btn-filter active">Tutti</button>
+                        <button id="btn-filter-missing" onclick="setFilter('missing')" class="btn-filter">Mancanti</button>
+                        <button id="btn-filter-done" onclick="setFilter('done')" class="btn-filter">Completati</button>
+                    </div>
+                    <div id="checkList">
+                    </div>
+                    <div class="add-item-box mt-3 pt-3 border-t">
+                        <input type="text" id="newItemInput" placeholder="Nuovo oggetto..." onkeypress="handleKeyPress(event)">
+                        <button onclick="addNewItem()" class="btn btn-blue" style="padding: 10px 15px; font-size: 0.9rem;">Aggiungi</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bingo -->
+            <div class="roadmap-stop">
+                <div class="stop-marker marker-green"></div>
+                <div class="card">
+                    <h2>Bingo del Viaggio</h2>
+                    <p style="font-size: 0.7rem; color: var(--text-dim); margin-bottom: 10px;">Chi completa per primo vince un panino!</p>
+                    <div id="bingoContainer" class="bingo-grid"></div>
+                </div>
+            </div>
+
+            <!-- Album Foto Condiviso -->
+            <div class="roadmap-stop">
+                <div class="stop-marker marker-green"></div>
+                <div class="card">
+                    <h2>Album Foto Condiviso 📸</h2>
+                    <p style="font-size: 0.8rem; opacity: 0.8; margin-bottom: 15px;">
+                        Carica qui le foto per non perdere qualità e vederle tutti.
+                    </p>
+                    
+                    <a href="https://drive.google.com/drive/folders/1FXGf0U_7R9q8O_CMwtONk5-lacH7a-bT?usp=drive_link" target="_blank" class="btn btn-blue" 
+                       style="text-decoration: none; display: block; text-align: center; font-weight: bold; background: #f97316;">
+                        📂 APRI CARTELLA DRIVE
+                    </a>
+
+                    <p style="font-size: 0.7rem; margin-top: 10px; opacity: 0.6;">
+                        * Usa l'app di Drive per caricare più foto insieme.
+                    </p>
+                </div>
+            </div>
+
+            <!-- SOS -->
             <div class="roadmap-stop">
                 <div class="stop-marker marker-pink"></div>
-                <div class="card">
-                    <h2>Album Foto Condiviso</h2>
-                    <p style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 15px;">
-                        Carica le foto su Google Drive per non perdere qualità!
-                    </p>
-                    <a href="https://drive.google.com/drive/folders/1FXGf0U_7R9q8O_CMwtONk5-lacH7a-bT?usp=drive_link" target="_blank" class="btn btn-blue" style="text-decoration: none; text-align: center; display: block;">
-                        📂 Apri Cartella Drive
-                    </a>
+                <div class="card" style="border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.05);">
+                    <h2>Area Emergenza</h2>
+                    <div id="emergencyContainer"></div>
                 </div>
             </div>
         </div>

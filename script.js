@@ -66,30 +66,30 @@ window.naviga = (platform) => {
 
 // 4. CASSA CARBURANTE (Real-time)
 window.salvaCassaCloud = () => {
-    const litri = parseFloat(document.getElementById('input-litri')?.value) || 0;
-    const prezzo = parseFloat(document.getElementById('input-prezzo')?.value) || 0;
+    const kia = parseFloat(document.getElementById('input-kia')?.value) || 0;
+    const punto = parseFloat(document.getElementById('input-punto')?.value) || 0;
     const tolls = parseFloat(document.getElementById('input-tolls')?.value) || 0;
 
     // Aggiorna UI localmente subito
-    aggiornaRisultatoCassa(litri, prezzo, tolls);
+    aggiornaRisultatoCassa(kia, punto, tolls);
 
     // Invia al cloud — tutti lo vedranno in tempo reale
-    tripNode.get('cassa').put({ litri, prezzo, tolls });
+    tripNode.get('cassa').put({ kia, punto, tolls });
 };
 
-const aggiornaRisultatoCassa = (litri, prezzo, tolls) => {
+const aggiornaRisultatoCassa = (kia, punto, tolls) => {
     const resultEl = document.getElementById('result');
     if (!resultEl) return;
-    const totaleBenzina = litri * prezzo;
+    const totaleBenzina = kia * punto; // Litri * Prezzo
     const totale = totaleBenzina + tolls;
     const quota = totale / (TRIP_CONFIG.group.size || 7);
     resultEl.innerText = quota.toFixed(2);
 
     // Aggiorna i campi solo se non sono quelli attivi (per non interrompere chi sta scrivendo)
     const active = document.activeElement?.id;
-    if (active !== 'input-litri')  { const el = document.getElementById('input-litri');  if (el && litri)  el.value = litri; }
-    if (active !== 'input-prezzo') { const el = document.getElementById('input-prezzo'); if (el && prezzo) el.value = prezzo; }
-    if (active !== 'input-tolls')  { const el = document.getElementById('input-tolls');  if (el && tolls)  el.value = tolls; }
+    if (active !== 'input-kia')   { const el = document.getElementById('input-kia');   if (el) el.value = kia || ""; }
+    if (active !== 'input-punto') { const el = document.getElementById('input-punto'); if (el) el.value = punto || ""; }
+    if (active !== 'input-tolls') { const el = document.getElementById('input-tolls'); if (el) el.value = tolls || ""; }
 };
 
 // 5. CHECKLIST CON MEMORIA E FILTRI
@@ -670,17 +670,17 @@ tripNode.get('cassa').on((data) => {
     if (!data) return;
     
     // Aggiorna i campi di input
-    const elLitri = document.getElementById('input-litri');
-    const elPrezzo = document.getElementById('input-prezzo');
+    const elKia = document.getElementById('input-kia');
+    const elPunto = document.getElementById('input-punto');
     const elTolls = document.getElementById('input-tolls');
 
     // Li aggiorniamo solo se l'utente non ci sta scrivendo sopra in questo momento
-    if (document.activeElement !== elLitri)  elLitri.value = data.litri || "";
-    if (document.activeElement !== elPrezzo) elPrezzo.value = data.prezzo || "";
+    if (document.activeElement !== elKia)   elKia.value = data.kia || "";
+    if (document.activeElement !== elPunto) elPunto.value = data.punto || "";
     if (document.activeElement !== elTolls)  elTolls.value = data.tolls || "";
     
     // Ricalcola il totale a testa
-    aggiornaRisultatoCassa(data.litri || 0, data.prezzo || 0, data.tolls || 0);
+    aggiornaRisultatoCassa(data.kia || 0, data.punto || 0, data.tolls || 0);
 });
 
 // Ascolto nuovi oggetti Checklist "Da non dimenticare"
