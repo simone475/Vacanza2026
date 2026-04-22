@@ -112,7 +112,7 @@ function renderChecklist() {
         const div = document.createElement('div');
         div.className = "checklist-item";
         div.innerHTML = `
-            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; width:100%;">
+            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1;">
                 <input type="checkbox" id="check-${item}" ${isChecked ? 'checked' : ''} 
                        onchange="toggleCheck('${item.replace(/'/g, "\\'")}', this.checked)">
                 <span id="text-${item}" class="${isChecked ? 'strikethrough' : ''}">${item}</span>
