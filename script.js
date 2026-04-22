@@ -101,7 +101,7 @@ function renderChecklist() {
 
     // Uniamo oggetti fissi e quelli aggiunti extra
     const extra = JSON.parse(localStorage.getItem('custom_items') || "[]");
-    const allItems = [...new Set([...fissi, ...extra])];
+    const allItems = [...new Set([...extra])];
 
     allItems.forEach(item => {
         const isChecked = localStorage.getItem(`trip_item_${item}`) === 'true';
