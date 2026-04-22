@@ -18,18 +18,16 @@ async function initSQLite() {
             console.log("SQLite: Database caricato da IndexedDB");
         } else {
             db = new SQL.Database();
-            // Inizializzazione schema per la prima volta
-            db.run(`
-                CREATE TABLE IF NOT EXISTS stats (id TEXT PRIMARY KEY, value INTEGER);
-                INSERT OR IGNORE INTO stats VALUES ('hype', 100), ('patience', 100), ('social', 100);
-                
-                CREATE TABLE IF NOT EXISTS cassa (id INTEGER PRIMARY KEY, kia REAL, punto REAL, tolls REAL);
-                INSERT OR IGNORE INTO cassa VALUES (1, 0, 0, 0);
-                
-                CREATE TABLE IF NOT EXISTS checklist (item TEXT PRIMARY KEY, is_checked INTEGER, is_custom INTEGER);
-            `);
-            console.log("SQLite: Nuovo database creato");
-            await saveDBToIndexedDB();
+            // Carica lo schema dal file esterno
+            try {
+                const sqlRes = await fetch('setup.sql');
+                const sqlText = await sqlRes.text();
+                db.run(sqlText);
+                console.log("SQLite: Database inizializzato con setup.sql");
+                await saveDBToIndexedDB();
+            } catch (e) {
+                console.error("Errore nel caricamento di setup.sql:", e);
+            }
         }
     } catch (err) {
         console.error("Errore inizializzazione SQLite:", err);
