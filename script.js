@@ -66,9 +66,9 @@ window.naviga = (platform) => {
 
 // 4. CASSA CARBURANTE (Real-time)
 window.salvaCassaCloud = () => {
-    const kia = parseFloat(document.getElementById('input-kia')?.value) || 0;
-    const punto = parseFloat(document.getElementById('input-punto')?.value) || 0;
-    const tolls = parseFloat(document.getElementById('input-tolls')?.value) || 0;
+    const kia = parseFloat(document.getElementById('costKia')?.value) || 0;
+    const punto = parseFloat(document.getElementById('costPunto')?.value) || 0;
+    const tolls = parseFloat(document.getElementById('costTolls')?.value) || 0;
 
     // Aggiorna UI localmente subito
     aggiornaRisultatoCassa(kia, punto, tolls);
@@ -80,16 +80,15 @@ window.salvaCassaCloud = () => {
 const aggiornaRisultatoCassa = (kia, punto, tolls) => {
     const resultEl = document.getElementById('result');
     if (!resultEl) return;
-    const totaleBenzina = kia * punto; // Litri * Prezzo
-    const totale = totaleBenzina + tolls;
+    const totale = kia + punto + tolls; // Somma delle spese
     const quota = totale / (TRIP_CONFIG.group.size || 7);
     resultEl.innerText = quota.toFixed(2);
 
     // Aggiorna i campi solo se non sono quelli attivi (per non interrompere chi sta scrivendo)
     const active = document.activeElement?.id;
-    if (active !== 'input-kia')   { const el = document.getElementById('input-kia');   if (el) el.value = kia || ""; }
-    if (active !== 'input-punto') { const el = document.getElementById('input-punto'); if (el) el.value = punto || ""; }
-    if (active !== 'input-tolls') { const el = document.getElementById('input-tolls'); if (el) el.value = tolls || ""; }
+    if (active !== 'costKia')   { const el = document.getElementById('costKia');   if (el) el.value = kia || ""; }
+    if (active !== 'costPunto') { const el = document.getElementById('costPunto'); if (el) el.value = punto || ""; }
+    if (active !== 'costTolls') { const el = document.getElementById('costTolls'); if (el) el.value = tolls || ""; }
 };
 
 // 5. CHECKLIST CON MEMORIA E FILTRI
@@ -670,9 +669,9 @@ tripNode.get('cassa').on((data) => {
     if (!data) return;
     
     // Aggiorna i campi di input
-    const elKia = document.getElementById('input-kia');
-    const elPunto = document.getElementById('input-punto');
-    const elTolls = document.getElementById('input-tolls');
+    const elKia = document.getElementById('costKia');
+    const elPunto = document.getElementById('costPunto');
+    const elTolls = document.getElementById('costTolls');
 
     // Li aggiorniamo solo se l'utente non ci sta scrivendo sopra in questo momento
     if (document.activeElement !== elKia)   elKia.value = data.kia || "";

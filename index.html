@@ -110,19 +110,27 @@
             <div class="roadmap-stop">
                 <div class="stop-marker marker-pink"></div>
                 <div class="card">
-                    <h2>Cassa Carburante 💰</h2>
+                    <h2>Cassa Automatica</h2>
+                    <p style="font-size: 0.7rem; color: #fbcfe8; margin-bottom: 10px;">Inserisci le spese effettuate (€):</p>
+                    
                     <div class="input-group">
-                        <input type="number" id="input-kia" placeholder="Litri benzina" oninput="salvaCassaCloud()">
+                        <label>Rifornimento Kia</label>
+                        <input type="number" id="costKia" placeholder="0" oninput="salvaCassaCloud()">
                     </div>
-                    <div class="input-group" style="margin-top: 10px;">
-                        <input type="number" id="input-punto" placeholder="Prezzo al litro (€)" oninput="salvaCassaCloud()">
+                    
+                    <div class="input-group">
+                        <label>Rifornimento Punto</label>
+                        <input type="number" id="costPunto" placeholder="0" oninput="salvaCassaCloud()">
                     </div>
-                    <div class="input-group" style="margin-top: 10px;">
-                        <input type="number" id="input-tolls" placeholder="Pedaggi (€)" oninput="salvaCassaCloud()">
+
+                    <div class="input-group">
+                        <label>Pedaggi Totali</label>
+                        <input type="number" id="costTolls" placeholder="0" oninput="salvaCassaCloud()">
                     </div>
-                    <div class="result-box" style="margin-top: 15px;">
-                        <span>Quota a testa:</span>
-                        <span>€<span id="result">0</span></span>
+
+                    <div class="result-box mt-3 pt-3 border-t">
+                        <span>Quota a testa (su 7):</span>
+                        <span>€<span id="result">0.00</span></span>
                     </div>
                 </div>
             </div>
