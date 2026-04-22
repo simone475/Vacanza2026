@@ -20,26 +20,28 @@ function initGun() {
         peers: [
             'https://gun-manhattan.herokuapp.com/gun',
             'https://relay.peer.ooo/gun',
-            'https://relay.gun.eco/gun'
+            'https://relay.gun.eco/gun',
+            'https://gun-us.herokuapp.com/gun',
+            'https://gun-matrix.herokuapp.com/gun',
+            'https://dletta.top/gun',
+            'https://gun-amsterdam.herokuapp.com/gun'
         ],
-        localStorage: false,
-        retry: 2000
+        localStorage: true
     });
     
     tripNode = gun.get('vacanza_2026_FINAL_SYNC');
     
     let activePeers = 0;
 
-    // Heartbeat per mantenere attiva la connessione su mobile
+    // Heartbeat
     setInterval(() => {
         if (activePeers > 0) {
             gun.get('heartbeat').put(Date.now());
         }
-    }, 15000);
+    }, 20000);
 
-    // Funzione diagnostica
     window.checkCloud = () => {
-        alert(`Stato Cloud:\n- Peer attivi: ${activePeers}\n- Canale: FINAL_SYNC\n- Database: SQLite OK`);
+        alert(`Stato Cloud:\n- Peer attivi: ${activePeers}\n- Canale: FINAL_SYNC\n- DB: SQLite + GunStorage`);
     };
 
     gun.on('hi', peer => {
