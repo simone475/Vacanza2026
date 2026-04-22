@@ -500,6 +500,17 @@ const initApp = async () => {
         renderChecklist();
     });
 
+    // 5. Sincronizzazione Foto Cloud
+    tripNode.get('cloud_photos').map().on((photo, id) => {
+        if (!id || id === '_' || id.startsWith('_')) return;
+        if (photo && photo.data) {
+            sharedPhotos[id] = { ...photo, id };
+        } else {
+            delete sharedPhotos[id];
+        }
+        renderCloudPhotos();
+    });
+
     // Caricamento dati iniziali da SQLite per UI
     try {
         const cassaRes = db.exec("SELECT kia, punto, tolls FROM cassa WHERE id = 1");
@@ -626,15 +637,20 @@ window.handlePhotoUpload = async (e) => {
             const compressed = await compressImage(file);
             const photoId = `photo_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
 
-            // Salvataggio locale
-            sharedPhotos[photoId] = {
+            const photoObj = {
                 data: compressed,
                 by: userName,
                 ts: Date.now(),
                 id: photoId
             };
+
+            // 1. Salvataggio locale (per velocità)
+            sharedPhotos[photoId] = photoObj;
             localStorage.setItem('local_photos', JSON.stringify(sharedPhotos));
             renderCloudPhotos();
+
+            // 2. Sincronizzazione Cloud
+            tripNode.get('cloud_photos').get(photoId).put(photoObj);
 
         } catch (err) {
             console.error('Errore compressione foto:', err);
@@ -718,8 +734,13 @@ window.deleteLightboxPhoto = () => {
 
 // --- Elimina Foto ---
 window.deleteCloudPhoto = (id) => {
+    // 1. Locale
     delete sharedPhotos[id];
     localStorage.setItem('local_photos', JSON.stringify(sharedPhotos));
+    
+    // 2. Cloud
+    tripNode.get('cloud_photos').get(id).put(null);
+    
     renderCloudPhotos();
 };
 
