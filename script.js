@@ -16,31 +16,47 @@ function initGun() {
         indicator.title = "Connessione al cloud in corso...";
     }
 
-    gun = Gun([
-        'https://gun-manhattan.herokuapp.com/gun',
-        'https://relay.peer.ooo/gun',
-        'https://gun-us.herokuapp.com/gun',
-        'https://gun-matrix.herokuapp.com/gun',
-        'https://dletta.top/gun',
-        'https://gunjs.herokuapp.com/gun',
-        'https://gun-amsterdam.herokuapp.com/gun'
-    ]);
+    gun = Gun({
+        peers: [
+            'https://relay.gun.eco/gun',
+            'https://gun-manhattan.herokuapp.com/gun',
+            'https://relay.peer.ooo/gun',
+            'https://gunjs.herokuapp.com/gun',
+            'https://dletta.top/gun'
+        ],
+        localStorage: false, // Evita conflitti con SQLite
+        retry: 1000 // Riprova ogni secondo se cade
+    });
     
-    tripNode = gun.get('vacanza_2026_sqlite_v2'); // Nuova versione per pulizia
+    tripNode = gun.get('vacanza_2026_sqlite_v2');
     
+    let activePeers = 0;
+
     // Gestione indicatore connettività
     gun.on('hi', peer => {
-        console.log("Gun.js: Connesso a un peer");
+        activePeers++;
+        console.log("Gun.js: Peer connesso (" + activePeers + ")");
         if (indicator) {
             indicator.style.background = "#22c55e"; // Verde
             indicator.style.boxShadow = "0 0 8px #22c55e";
-            indicator.title = "Sincronizzazione attiva";
+            indicator.title = "Sincronizzazione attiva (" + activePeers + " peer)";
         }
     });
 
     gun.on('bye', peer => {
-        console.warn("Gun.js: Connessione persa con un peer");
-        // Se non ci sono altri peer, potremmo rimetterlo rosso/arancio
+        activePeers--;
+        console.warn("Gun.js: Peer disconnesso (" + activePeers + ")");
+        if (indicator) {
+            if (activePeers <= 0) {
+                indicator.style.background = "#ef4444"; // Rosso
+                indicator.style.boxShadow = "0 0 8px #ef4444";
+                indicator.title = "Disconnesso - Tentativo di riconnessione...";
+                activePeers = 0;
+            } else {
+                indicator.style.background = "#f59e0b"; // Giallo/Arancione
+                indicator.style.boxShadow = "0 0 8px #f59e0b";
+            }
+        }
     });
     
     console.log("Gun.js: Inizializzato");
