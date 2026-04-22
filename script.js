@@ -64,32 +64,32 @@ window.naviga = (platform) => {
     window.open(urls[platform], '_blank');
 };
 
-// 4. CASSA AUTOMATICA
-window.recalcCassa = () => {
-    const costKia = parseFloat(document.getElementById('costKia').value) || 0;
-    const costPunto = parseFloat(document.getElementById('costPunto').value) || 0;
-    const costTolls = parseFloat(document.getElementById('costTolls').value) || 0;
-    
-    // Sincronizziamo su Gun
-    if (typeof tripNode !== 'undefined') {
-        tripNode.get('cassa').put({ kia: costKia, punto: costPunto, tolls: costTolls });
-    } else {
-        // Fallback locale se Gun non è ancora pronto
-        updateCassaUI(costKia, costPunto, costTolls);
-    }
+// 4. CASSA CARBURANTE (Real-time)
+window.salvaCassaCloud = () => {
+    const litri = parseFloat(document.getElementById('input-litri')?.value) || 0;
+    const prezzo = parseFloat(document.getElementById('input-prezzo')?.value) || 0;
+    const tolls = parseFloat(document.getElementById('input-tolls')?.value) || 0;
+
+    // Aggiorna UI localmente subito
+    aggiornaRisultatoCassa(litri, prezzo, tolls);
+
+    // Invia al cloud — tutti lo vedranno in tempo reale
+    tripNode.get('cassa').put({ litri, prezzo, tolls });
 };
 
-const updateCassaUI = (kia, punto, tolls) => {
+const aggiornaRisultatoCassa = (litri, prezzo, tolls) => {
     const resultEl = document.getElementById('result');
     if (!resultEl) return;
-    const totalTrip = parseFloat(kia || 0) + parseFloat(punto || 0) + parseFloat(tolls || 0);
-    const perPerson = totalTrip / (TRIP_CONFIG.group.size || 7);
-    resultEl.innerText = perPerson.toFixed(2);
-    
-    // Aggiorna gli input se non sono quelli attivi (per non interrompere chi scrive)
-    if (document.activeElement.id !== 'costKia') document.getElementById('costKia').value = kia;
-    if (document.activeElement.id !== 'costPunto') document.getElementById('costPunto').value = punto;
-    if (document.activeElement.id !== 'costTolls') document.getElementById('costTolls').value = tolls;
+    const totaleBenzina = litri * prezzo;
+    const totale = totaleBenzina + tolls;
+    const quota = totale / (TRIP_CONFIG.group.size || 7);
+    resultEl.innerText = quota.toFixed(2);
+
+    // Aggiorna i campi solo se non sono quelli attivi (per non interrompere chi sta scrivendo)
+    const active = document.activeElement?.id;
+    if (active !== 'input-litri')  { const el = document.getElementById('input-litri');  if (el && litri)  el.value = litri; }
+    if (active !== 'input-prezzo') { const el = document.getElementById('input-prezzo'); if (el && prezzo) el.value = prezzo; }
+    if (active !== 'input-tolls')  { const el = document.getElementById('input-tolls');  if (el && tolls)  el.value = tolls; }
 };
 
 // 5. CHECKLIST CON MEMORIA E FILTRI
@@ -119,10 +119,11 @@ const renderChecklist = () => {
         div.innerHTML = `
             <label class="checklist-label">
                 <input type="checkbox" 
+                       id="check-${item}"
                        ${isChecked ? 'checked' : ''} 
-                       onchange="toggleItem('${item.replace(/'/g, "\\'")}', this.checked)"
+                       onchange="toggleCheck('${item.replace(/'/g, "\\'")}', this.checked)"
                        class="checklist-checkbox">
-                <span class="${isChecked ? 'strikethrough' : 'text-normal'}">${item}</span>
+                <span id="text-${item}" class="${isChecked ? 'strikethrough' : 'text-normal'}">${item}</span>
             </label>
             <button class="btn-delete" onclick="deleteItem('${item.replace(/'/g, "\\'")}')" title="Elimina">×</button>
         `;
@@ -151,10 +152,14 @@ const initChecklist = () => {
 };
 
 window.toggleItem = (item, checked) => {
+    toggleCheck(item, checked);
+};
+
+window.toggleCheck = (item, status) => {
     if (typeof tripNode !== 'undefined') {
-        tripNode.get('checklist_states').get(item).put(checked);
+        tripNode.get('checklist_states').get(item).put(status);
     } else {
-        localStorage.setItem(`trip_item_${item}`, checked);
+        localStorage.setItem(`trip_item_${item}`, status);
         renderChecklist(); 
     }
 };
@@ -257,7 +262,9 @@ const renderBingo = () => {
     TRIP_CONFIG.bingo.forEach((item, index) => {
         const isChecked = localStorage.getItem(`bingo_item_${index}`) === 'true';
         html += `
-            <div class="bingo-cell ${isChecked ? 'checked' : ''}" onclick="toggleBingo(${index}, this)">
+            <div class="bingo-cell ${isChecked ? 'checked' : ''}" 
+                 data-idx="${index}" 
+                 onclick="toggleBingo(this)">
                 ${item}
             </div>
         `;
@@ -265,14 +272,17 @@ const renderBingo = () => {
     container.innerHTML = html;
 };
 
-window.toggleBingo = (index, el) => {
+window.toggleBingo = (el) => {
+    const idx = el.getAttribute('data-idx');
     const isChecked = !el.classList.contains('checked');
+    
+    // Invia al cloud Gun
     if (typeof tripNode !== 'undefined') {
-        tripNode.get('bingo').get(index.toString()).put(isChecked);
+        tripNode.get('bingo').get(idx).put(isChecked);
     } else {
-        // Fallback locale
+        // Fallback locale se non c'è internet
         el.classList.toggle('checked', isChecked);
-        localStorage.setItem(`bingo_item_${index}`, isChecked);
+        localStorage.setItem(`bingo_item_${idx}`, isChecked);
     }
 };
 
@@ -612,13 +622,12 @@ window.updateStat = (type, change) => {
 // --- GUN.JS CONFIGURATION ---
 // Relay aggiornati e funzionanti (i precedenti Heroku erano offline)
 const gun = Gun([
-    'https://gun-manhattan.euw.r.appspot.com/gun',
-    'wss://gundb-relay.glitch.me/gun',
-    'https://peer.wallie.io/gun',
-    'https://gun.eco/gun'
+    'https://gun-manhattan.herokuapp.com/gun',
+    'https://relay.peer.ooo/gun'
 ]);
 
-const tripNode = gun.get('vacanza2026_platjadaro_v3'); // v3 per pulizia dati precedenti
+// Questa è la "stanza" del vostro viaggio. Non cambiarla!
+const tripNode = gun.get('roadtrip_platja_daro_2026_final_v1');
 
 // Gestione connettività
 gun.on('hi', peer => {
@@ -642,20 +651,36 @@ tripNode.get('stats').map().on((val, type) => {
     }
 });
 
-// Ascolto aggiornamenti Bingo
-tripNode.get('bingo').map().on((val, index) => {
-    const cells = document.querySelectorAll('.bingo-cell');
-    if (cells[index]) {
-        cells[index].classList.toggle('checked', val === true);
+// Ascolto aggiornamenti Bingo dagli altri telefoni
+tripNode.get('bingo').map().on((val, idx) => {
+    if (!idx || idx === '_' || idx.startsWith('_')) return;
+    
+    // Cerchiamo la casella tramite l'attributo data-idx
+    const btn = document.querySelector(`[data-idx="${idx}"]`);
+    if (btn) {
+        btn.classList.toggle('checked', val === true);
     }
-    localStorage.setItem(`bingo_item_${index}`, val);
+    
+    // Salviamo anche localmente per quando riapri il sito
+    localStorage.setItem(`bingo_item_${idx}`, val);
 });
 
-// Ascolto aggiornamenti Cassa
+// Riceve i dati dagli altri telefoni in tempo reale
 tripNode.get('cassa').on((data) => {
-    if (data && (data.kia !== undefined || data.punto !== undefined || data.tolls !== undefined)) {
-        updateCassaUI(data.kia || 0, data.punto || 0, data.tolls || 0);
-    }
+    if (!data) return;
+    
+    // Aggiorna i campi di input
+    const elLitri = document.getElementById('input-litri');
+    const elPrezzo = document.getElementById('input-prezzo');
+    const elTolls = document.getElementById('input-tolls');
+
+    // Li aggiorniamo solo se l'utente non ci sta scrivendo sopra in questo momento
+    if (document.activeElement !== elLitri)  elLitri.value = data.litri || "";
+    if (document.activeElement !== elPrezzo) elPrezzo.value = data.prezzo || "";
+    if (document.activeElement !== elTolls)  elTolls.value = data.tolls || "";
+    
+    // Ricalcola il totale a testa
+    aggiornaRisultatoCassa(data.litri || 0, data.prezzo || 0, data.tolls || 0);
 });
 
 // Ascolto nuovi oggetti Checklist "Da non dimenticare"
@@ -673,11 +698,28 @@ tripNode.get('checklist_items').map().on((val, item) => {
     renderChecklist();
 });
 
-// Ascolto stati Checklist (spuntato/non spuntato)
-tripNode.get('checklist_states').map().on((checked, item) => {
-    if (!item || item === '_' || item.startsWith('_')) return; // Ignora metadati Gun
-    localStorage.setItem(`trip_item_${item}`, checked);
-    renderChecklist();
+// Ascolto stati Checklist (spuntato/non spuntato dagli altri telefoni)
+tripNode.get('checklist_states').map().on((val, item) => {
+    if (!item || item === '_' || item.startsWith('_')) return;
+    
+    // 1. Salviamo nello storage per persistenza al ricaricamento
+    localStorage.setItem(`trip_item_${item}`, val);
+    
+    // 2. Aggiorniamo la checkbox se esiste nel DOM
+    const cb = document.getElementById(`check-${item}`);
+    if (cb) cb.checked = val;
+    
+    // 3. Logica per barrare il testo
+    const txt = document.getElementById(`text-${item}`);
+    if (txt) {
+        if (val) {
+            txt.classList.add('strikethrough');
+            txt.classList.remove('text-normal');
+        } else {
+            txt.classList.remove('strikethrough');
+            txt.classList.add('text-normal');
+        }
+    }
 });
 
 // Ascolto foto del cloud (da tutti i dispositivi)
