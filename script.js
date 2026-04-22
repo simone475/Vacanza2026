@@ -18,23 +18,23 @@ function initGun() {
 
     gun = Gun({
         peers: [
-            'https://relay.gun.eco/gun',
             'https://gun-manhattan.herokuapp.com/gun',
-            'https://relay.peer.ooo/gun',
-            'https://gunjs.herokuapp.com/gun',
-            'https://dletta.top/gun'
+            'https://relay.gun.eco/gun',
+            'https://relay.peer.ooo/gun'
         ],
-        localStorage: false, // Evita conflitti con SQLite
-        retry: 1000 // Riprova ogni secondo se cade
+        localStorage: false,
+        retry: 2000
     });
     
-    tripNode = gun.get('vacanza_2026_sqlite_v2');
+    tripNode = gun.get('vacanza_2026_FINAL_SYNC'); // Canale definitivo
     
     let activePeers = 0;
+    let lastConnectionTime = 0;
 
     // Gestione indicatore connettività
     gun.on('hi', peer => {
         activePeers++;
+        lastConnectionTime = Date.now();
         console.log("Gun.js: Peer connesso (" + activePeers + ")");
         if (indicator) {
             indicator.style.background = "#22c55e"; // Verde
@@ -45,15 +45,17 @@ function initGun() {
 
     gun.on('bye', peer => {
         activePeers--;
+        if (activePeers < 0) activePeers = 0;
         console.warn("Gun.js: Peer disconnesso (" + activePeers + ")");
+        
+        // Se abbiamo appena avuto una connessione e l'abbiamo persa, mettiamo giallo (instabile)
         if (indicator) {
-            if (activePeers <= 0) {
+            if (activePeers === 0) {
                 indicator.style.background = "#ef4444"; // Rosso
                 indicator.style.boxShadow = "0 0 8px #ef4444";
-                indicator.title = "Disconnesso - Tentativo di riconnessione...";
-                activePeers = 0;
+                indicator.title = "Connessione persa - Riconnessione in corso...";
             } else {
-                indicator.style.background = "#f59e0b"; // Giallo/Arancione
+                indicator.style.background = "#f59e0b"; // Giallo
                 indicator.style.boxShadow = "0 0 8px #f59e0b";
             }
         }
