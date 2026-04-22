@@ -1,4 +1,4 @@
-/**
+/*
  * ROAD TRIP CORE SCRIPT
  * Configurazione e logica per il viaggio di gruppo
  */
