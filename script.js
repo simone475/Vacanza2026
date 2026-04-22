@@ -99,21 +99,25 @@ function renderChecklist() {
     if (!listDiv) return;
     listDiv.innerHTML = '';
 
-    const allItems = [...TRIP_CONFIG.group.items, "Cavi ricarica", "Powerbank", "Acqua", "Snack", "Documenti", "Frigo"];
+    // Unisce gli oggetti fissi (i primi 6) con quelli aggiunti dagli utenti
+    const fissi = (TRIP_CONFIG.group.items && TRIP_CONFIG.group.items.length > 0) 
+                  ? TRIP_CONFIG.group.items 
+                  : ["Cavi ricarica", "Powerbank", "Acqua", "Snack", "Documenti", "Frigo"];
+    const extra = JSON.parse(localStorage.getItem('custom_items') || "[]");
+    const allItems = [...new Set([...fissi, ...extra])]; // Evita duplicati
 
     allItems.forEach(item => {
-        const safeName = item.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        // Legge lo stato salvato localmente usando il safeName
-        const isChecked = localStorage.getItem(`trip_item_safe_${safeName}`) === 'true';
-
+        const isChecked = localStorage.getItem(`trip_item_${item}`) === 'true';
+        const isExtra = extra.includes(item);
         const div = document.createElement('div');
         div.className = "checklist-item";
         div.innerHTML = `
             <label style="display:flex; align-items:center; gap:10px; cursor:pointer; width:100%;">
-                <input type="checkbox" id="check-${safeName}" ${isChecked ? 'checked' : ''} 
+                <input type="checkbox" id="check-${item}" ${isChecked ? 'checked' : ''} 
                        onchange="toggleCheck('${item.replace(/'/g, "\\'")}', this.checked)">
-                <span id="text-${safeName}" class="${isChecked ? 'strikethrough' : ''}">${item}</span>
+                <span id="text-${item}" class="${isChecked ? 'strikethrough' : ''}">${item}</span>
             </label>
+            ${isExtra ? `<button class="btn-delete" onclick="removeItem('${item.replace(/'/g, "\\'")}')" title="Elimina">×</button>` : ''}
         `;
         listDiv.appendChild(div);
     });
@@ -124,15 +128,23 @@ window.setFilter = (filter) => {
     renderChecklist();
 };
 
-window.deleteItem = (item) => {
+window.removeItem = (item) => {
+    // 1. Rimuovi dal Cloud (fondamentale)
     if (typeof tripNode !== 'undefined') {
-        tripNode.get('checklist_items').get(item).put(null); // Rimuove da Gun
-    } else {
-        let customItems = JSON.parse(localStorage.getItem('custom_items') || '[]');
-        customItems = customItems.filter(i => i !== item);
-        localStorage.setItem('custom_items', JSON.stringify(customItems));
-        renderChecklist();
+        tripNode.get('custom_items').get(item).put(null);
+        tripNode.get('checklist_states').get(item).put(null);
     }
+
+    // 2. Rimuovi dalla memoria locale
+    let customItems = JSON.parse(localStorage.getItem('custom_items') || "[]");
+    customItems = customItems.filter(i => i !== item);
+    localStorage.setItem('custom_items', JSON.stringify(customItems));
+    
+    // 3. Pulisci lo stato della spunta
+    localStorage.removeItem(`trip_item_${item}`);
+
+    // 4. Ridisegna la lista
+    renderChecklist();
 };
 
 const initChecklist = () => {
@@ -144,14 +156,11 @@ window.toggleItem = (item, checked) => {
 };
 
 window.toggleCheck = function(item, status) {
-    // Rimuoviamo spazi e punti che fanno impazzire Gun
-    const safeName = item.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    
     // Salvataggio locale immediato per reattività
-    localStorage.setItem(`trip_item_safe_${safeName}`, status);
+    localStorage.setItem(`trip_item_${item}`, status);
     
     if (typeof tripNode !== 'undefined') {
-        tripNode.get('checklist_states').get(safeName).put(status);
+        tripNode.get('checklist_states').get(item).put(status);
     } else {
         renderChecklist(); 
     }
@@ -161,19 +170,29 @@ window.addNewItem = () => {
     const input = document.getElementById('newItemInput');
     const val = input.value.trim();
     if (!val) return;
-
-    if (typeof tripNode !== 'undefined') {
-        tripNode.get('checklist_items').get(val).put(true);
-    } else {
-        const customItems = JSON.parse(localStorage.getItem('custom_items') || '[]');
-        if (!TRIP_CONFIG.group.items.includes(val) && !customItems.includes(val)) {
-            customItems.push(val);
-            localStorage.setItem('custom_items', JSON.stringify(customItems));
-            renderChecklist();
-        }
-    }
+    
+    aggiungiOggettoCustom(val);
     input.value = '';
 };
+
+function aggiungiOggettoCustom(nuovoItem) {
+    if(!nuovoItem) return;
+
+    // 1. Salva su Gun.js (Cloud)
+    // Usiamo un nodo dedicato per gli oggetti extra
+    if (typeof tripNode !== 'undefined') {
+        tripNode.get('custom_items').get(nuovoItem).put(true);
+    }
+    
+    // 2. Salva localmente (opzionale, per backup)
+    let customList = JSON.parse(localStorage.getItem('custom_items') || "[]");
+    if(!customList.includes(nuovoItem)) {
+        customList.push(nuovoItem);
+        localStorage.setItem('custom_items', JSON.stringify(customList));
+    }
+    
+    renderChecklist();
+}
 
 window.handleKeyPress = (e) => {
     if (e.key === 'Enter') {
@@ -705,16 +724,49 @@ tripNode.get('cloud_photos').map().on((photo, id) => {
     renderCloudPhotos();
 });
 
-// ASCOLTATORE CLOUD PER LA CHECKLIST
-tripNode.get('checklist_states').map().on((val, safeName) => {
-    // Dobbiamo ritrovare l'elemento originale. 
-    // Invece di impazzire, la cosa più semplice è forzare il render
-    // ma salvando il valore nel localStorage usando il safeName
-    localStorage.setItem(`trip_item_safe_${safeName}`, val);
+// Ascolto NUOVI oggetti o ELIMINAZIONI
+tripNode.get('custom_items').map().on((val, item) => {
+    if (!item || item.startsWith('_')) return;
+
+    let customItems = JSON.parse(localStorage.getItem('custom_items') || "[]");
+
+    if (val === true) {
+        // Se l'oggetto è stato aggiunto e non lo abbiamo, aggiungiamolo
+        if (!customItems.includes(item)) {
+            customItems.push(item);
+        }
+    } else if (val === null) {
+        // Se il valore è null, qualcuno lo ha eliminato
+        customItems = customItems.filter(i => i !== item);
+        localStorage.removeItem(`trip_item_${item}`);
+    }
+
+    localStorage.setItem('custom_items', JSON.stringify(customItems));
+    renderChecklist();
+});
+
+// Ascolto le spunte (Check/Uncheck)
+tripNode.get('checklist_states').map().on((val, item) => {
+    if (!item || item.startsWith('_')) return;
     
-    // Forza il refresh della UI per mostrare il nuovo stato
-    if(typeof renderChecklist === "function") {
-        renderChecklist();
+    if (val === null) {
+        localStorage.removeItem(`trip_item_${item}`);
+    } else {
+        localStorage.setItem(`trip_item_${item}`, val);
+    }
+    
+    // Aggiorna la grafica se l'elemento esiste (evita refresh continui se possibile)
+    const cb = document.getElementById(`check-${item}`);
+    if (cb) {
+        cb.checked = val === true;
+    }
+    const txt = document.getElementById(`text-${item}`);
+    if (txt) {
+        if (val === true) {
+            txt.classList.add('strikethrough');
+        } else {
+            txt.classList.remove('strikethrough');
+        }
     }
 });
 
