@@ -94,40 +94,30 @@ const aggiornaRisultatoCassa = (kia, punto, tolls) => {
 // 5. CHECKLIST CON MEMORIA E FILTRI
 let currentFilter = 'all';
 
-const renderChecklist = () => {
+function renderChecklist() {
     const listDiv = document.getElementById('checkList');
     if (!listDiv) return;
     listDiv.innerHTML = '';
 
-    const customItems = JSON.parse(localStorage.getItem('custom_items') || '[]');
-    const allItems = [...TRIP_CONFIG.group.items, ...customItems];
-
-    document.querySelectorAll('.btn-filter').forEach(btn => btn.classList.remove('active'));
-    const activeBtn = document.getElementById(`btn-filter-${currentFilter}`);
-    if (activeBtn) activeBtn.classList.add('active');
+    const allItems = [...TRIP_CONFIG.group.items, "Cavi ricarica", "Powerbank", "Acqua", "Snack", "Documenti", "Frigo"];
 
     allItems.forEach(item => {
-        const isChecked = localStorage.getItem(`trip_item_${item}`) === 'true';
-        
-        if (currentFilter === 'missing' && isChecked) return;
-        if (currentFilter === 'done' && !isChecked) return;
+        const safeName = item.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        // Legge lo stato salvato localmente usando il safeName
+        const isChecked = localStorage.getItem(`trip_item_safe_${safeName}`) === 'true';
 
         const div = document.createElement('div');
         div.className = "checklist-item";
-        
         div.innerHTML = `
             <label style="display:flex; align-items:center; gap:10px; cursor:pointer; width:100%;">
-                <input type="checkbox" 
-                       id="check-${item}" 
-                       ${isChecked ? 'checked' : ''} 
-                       onchange="tripNode.get('checklist_states').get('${item.replace(/'/g, "\\'")}').put(this.checked)">
-                <span id="text-${item}" class="${isChecked ? 'strikethrough' : ''}">${item}</span>
+                <input type="checkbox" id="check-${safeName}" ${isChecked ? 'checked' : ''} 
+                       onchange="toggleCheck('${item.replace(/'/g, "\\'")}', this.checked)">
+                <span id="text-${safeName}" class="${isChecked ? 'strikethrough' : ''}">${item}</span>
             </label>
-            <button class="btn-delete" onclick="deleteItem('${item.replace(/'/g, "\\'")}')" title="Elimina">×</button>
         `;
         listDiv.appendChild(div);
     });
-};
+}
 
 window.setFilter = (filter) => {
     currentFilter = filter;
@@ -153,11 +143,16 @@ window.toggleItem = (item, checked) => {
     toggleCheck(item, checked);
 };
 
-window.toggleCheck = (item, status) => {
+window.toggleCheck = function(item, status) {
+    // Rimuoviamo spazi e punti che fanno impazzire Gun
+    const safeName = item.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    
+    // Salvataggio locale immediato per reattività
+    localStorage.setItem(`trip_item_safe_${safeName}`, status);
+    
     if (typeof tripNode !== 'undefined') {
-        tripNode.get('checklist_states').get(item).put(status);
+        tripNode.get('checklist_states').get(safeName).put(status);
     } else {
-        localStorage.setItem(`trip_item_${item}`, status);
         renderChecklist(); 
     }
 };
@@ -619,13 +614,14 @@ window.updateStat = (type, change) => {
 
 // --- GUN.JS CONFIGURATION ---
 // Relay aggiornati e funzionanti (i precedenti Heroku erano offline)
+// 1. Peer più stabili e veloci
 const gun = Gun([
     'https://gun-manhattan.herokuapp.com/gun',
-    'https://relay.peer.ooo/gun'
+    'https://relay.peer.ooo/gun',
+    'https://gun-us.herokuapp.com/gun' // Terzo peer di backup
 ]);
 
-// Questa è la "stanza" del vostro viaggio. Non cambiarla!
-const tripNode = gun.get('roadtrip_platja_daro_2026_final_v1');
+const tripNode = gun.get('roadtrip_platja_daro_2026_final_v2'); // Cambiato in v2 per resettare i bug
 
 // Gestione connettività
 gun.on('hi', peer => {
@@ -709,27 +705,16 @@ tripNode.get('cloud_photos').map().on((photo, id) => {
     renderCloudPhotos();
 });
 
-// COPIA QUESTO IN FONDO AL FILE script.js
-tripNode.get('checklist_states').map().on((val, item) => {
-    if (!item || item.startsWith('_')) return;
-
-    // Aggiorna memoria locale
-    localStorage.setItem(`trip_item_${item}`, val);
-
-    // Aggiorna visivamente la checkbox
-    const cb = document.getElementById(`check-${item}`);
-    if (cb) cb.checked = val;
-
-    // Aggiorna visivamente il testo (barrato/normale)
-    const txt = document.getElementById(`text-${item}`);
-    if (txt) {
-        if (val) {
-            txt.style.textDecoration = "line-through";
-            txt.style.opacity = "0.5";
-        } else {
-            txt.style.textDecoration = "none";
-            txt.style.opacity = "1";
-        }
+// ASCOLTATORE CLOUD PER LA CHECKLIST
+tripNode.get('checklist_states').map().on((val, safeName) => {
+    // Dobbiamo ritrovare l'elemento originale. 
+    // Invece di impazzire, la cosa più semplice è forzare il render
+    // ma salvando il valore nel localStorage usando il safeName
+    localStorage.setItem(`trip_item_safe_${safeName}`, val);
+    
+    // Forza il refresh della UI per mostrare il nuovo stato
+    if(typeof renderChecklist === "function") {
+        renderChecklist();
     }
 });
 
