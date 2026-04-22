@@ -100,7 +100,6 @@ function renderChecklist() {
     listDiv.innerHTML = '';
 
     // Uniamo oggetti fissi e quelli aggiunti extra
-    const fissi = ["Cavi ricarica", "Powerbank", "Acqua", "Snack", "Documenti", "Frigo"];
     const extra = JSON.parse(localStorage.getItem('custom_items') || "[]");
     const allItems = [...new Set([...fissi, ...extra])];
 
