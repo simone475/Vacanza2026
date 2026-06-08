@@ -27,7 +27,7 @@
         {
             "id": "pilota2",
             "role": "Il Pilota",
-            "name": "Angelo",
+            "name": "Petre",
             "icon": "🏎️",
             "stats": ["+10 Precisione di manovra", "-10 Tolleranza ai passeggeri che dormono"]
         },
@@ -55,7 +55,7 @@
         {
             "id": "vigile",
             "role": "Sempre vigile",
-            "name": "Petre",
+            "name": "Alessio",
             "icon": "👀",
             "stats": ["+50 Resistenza al sonno", "-20 Silenzio"]
         },
