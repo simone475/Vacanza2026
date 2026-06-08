@@ -4,17 +4,6 @@ var supabase; // Client Supabase per sincronizzazione cloud (var allows redeclar
 // VERSIONE DEL FILE PER DEBUG
 console.log("🔧 SCRIPT.JS v20260611 caricato - Petre e Alessio sono qui!");
 
-// Pulisci immediatamente IndexedDB al caricamento
-(function() {
-    const dbs = indexedDB.databases ? indexedDB.databases() : [];
-    Promise.resolve(dbs).then(list => {
-        list.forEach(db => {
-            console.log(`🗑️ Eliminando IndexedDB: ${db.name}`);
-            indexedDB.deleteDatabase(db.name);
-        });
-    });
-})();
-
 // Filtro per sopprimere i warning non critici di Spotify/PlayReady
 (function() {
     const originalWarn = console.warn;
@@ -121,6 +110,17 @@ async function handleCloudUpdate(data) {
         renderCloudPhotos();
     }
 }
+
+// Funzione per controllare lo stato del cloud
+window.checkCloud = () => {
+    if (supabase) {
+        console.log("✅ Cloud (Supabase) è connesso");
+        alert("✅ Cloud sincronizzato! Dati salvati in Supabase.");
+    } else {
+        console.log("⚠️ Cloud non disponibile");
+        alert("⚠️ Cloud offline - lavoro solo in locale");
+    }
+};
 
 async function initSQLite() {
     try {
@@ -613,60 +613,74 @@ const initGeolocation = () => {
 
 
 const initApp = async () => {
+    console.log("📍 initApp: START");
     
-    await initSQLite();
-    initCloud();
-
     try {
-        const res = await fetch('data.json');
-        if (res.ok) {
-            TRIP_CONFIG = await res.json();
-            console.log("Dati caricati da JSON");
+        console.log("📍 initApp: Calling initSQLite...");
+        await initSQLite();
+        console.log("📍 initApp: initSQLite done");
+        
+        console.log("📍 initApp: Calling initCloud...");
+        initCloud();
+        console.log("📍 initApp: initCloud done");
+
+        try {
+            console.log("📍 initApp: Fetching data.json...");
+            const res = await fetch('data.json');
+            if (res.ok) {
+                TRIP_CONFIG = await res.json();
+                console.log("✅ Dati caricati da JSON");
+            }
+        } catch(e) {
+            console.warn("⚠️ Esecuzione locale senza server", e);
         }
-    } catch(e) {
-        console.warn("Esecuzione locale senza server", e);
+        
+
+        if (supabase) {
+            console.log("📍 initApp: Syncing with Supabase...");
+            const { data } = await supabase.from('roadtrip_sync').select('*');
+            if (data) {
+                data.forEach(row => handleCloudUpdate(row));
+            }
+        }
+
+        // Caricamento dati iniziali da SQLite per UI
+        try {
+            const cassaRes = db.exec("SELECT bmw, punto, tolls FROM cassa WHERE id = 1");
+            if (cassaRes.length > 0) {
+                const row = cassaRes[0].values[0];
+                aggiornaRisultatoCassa(row[0] || 0, row[1] || 0, row[2] || 0);
+            }
+        } catch (e) { console.warn("Dati cassa non trovati in DB", e); }
+
+        try {
+            const statsRes = db.exec("SELECT id, value FROM stats");
+            if (statsRes.length > 0) {
+                statsRes[0].values.forEach(row => {
+                    localStats[row[0]] = row[1];
+                });
+            }
+        } catch (e) { console.warn("Dati stats non trovati in DB", e); }
+
+        setInterval(updateCountdown, 60000); 
+        updateCountdown();
+        fetchWeather();
+        
+        console.log("📍 initApp: Rendering UI...");
+        renderTeam();
+        renderBingo();
+        renderEmergency();
+        renderChecklist();
+        initGeolocation();
+        initPhotoSection();
+        renderCloudPhotos();
+        renderStats();
+        
+        initObserver();
+        console.log("✅ initApp: COMPLETE");
+    } catch (err) {
+        console.error("❌ ERRORE CRITICO in initApp:", err);
     }
-    
-
-    if (supabase) {
-        const { data } = await supabase.from('roadtrip_sync').select('*');
-        if (data) {
-            data.forEach(row => handleCloudUpdate(row));
-        }
-    }
-
-    // Caricamento dati iniziali da SQLite per UI
-    try {
-        const cassaRes = db.exec("SELECT bmw, punto, tolls FROM cassa WHERE id = 1");
-        if (cassaRes.length > 0) {
-            const row = cassaRes[0].values[0];
-            aggiornaRisultatoCassa(row[0] || 0, row[1] || 0, row[2] || 0);
-        }
-    } catch (e) { console.warn("Dati cassa non trovati in DB", e); }
-
-    try {
-        const statsRes = db.exec("SELECT id, value FROM stats");
-        if (statsRes.length > 0) {
-            statsRes[0].values.forEach(row => {
-                localStats[row[0]] = row[1];
-            });
-        }
-    } catch (e) { console.warn("Dati stats non trovati in DB", e); }
-
-    setInterval(updateCountdown, 60000); 
-    updateCountdown();
-    fetchWeather();
-    
-    renderTeam();
-    renderBingo();
-    renderEmergency();
-    renderChecklist();
-    initGeolocation();
-    initPhotoSection();
-    renderCloudPhotos();
-    renderStats();
-    
-    initObserver();
 };
 
 
