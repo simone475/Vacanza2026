@@ -1,6 +1,33 @@
 var db; // Database SQLite globale (var allows redeclaration on reload)
 var supabase; // Client Supabase per sincronizzazione cloud (var allows redeclaration on reload)
 
+// Filtro per sopprimere i warning non critici di Spotify/PlayReady
+(function() {
+    const originalWarn = console.warn;
+    const originalError = console.error;
+    
+    const isSpotifyWarning = (message) => {
+        const msg = message?.toString() || '';
+        return msg.includes('robustness level') || 
+               msg.includes('PlayReady') ||
+               msg.includes('setServerCertificate') ||
+               msg.includes('generateRequest') ||
+               msg.includes('requestMediaKeySystemAccess');
+    };
+    
+    console.warn = function(...args) {
+        if (!isSpotifyWarning(args[0])) {
+            originalWarn.apply(console, args);
+        }
+    };
+    
+    console.error = function(...args) {
+        if (!isSpotifyWarning(args[0])) {
+            originalError.apply(console, args);
+        }
+    };
+})();
+
 // Configurazione Supabase (Inserisci qui i tuoi dati)
 const SUPABASE_URL = 'https://ldvcjhlssqijhwonquiy.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkdmNqaGxzc3Fpamh3b25xdWl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDU5MDYsImV4cCI6MjA5MjQyMTkwNn0.TVTvnCQdjLPXVgXTQdfXPQw_EMV58NfUnGw6XzDsUnI';
@@ -46,22 +73,27 @@ async function handleCloudUpdate(data) {
     const { id, payload } = data;
 
     if (id === 'cassa') {
-        db.run("UPDATE cassa SET bmw = ?, punto = ?, tolls = ? WHERE id = 1", [payload.bmw, payload.punto, payload.tolls]);
+        const bmw = payload?.bmw ?? 0;
+        const punto = payload?.punto ?? 0;
+        const tolls = payload?.tolls ?? 0;
+        db.run("UPDATE cassa SET bmw = ?, punto = ?, tolls = ? WHERE id = 1", [bmw, punto, tolls]);
         await saveDBToIndexedDB();
-        aggiornaRisultatoCassa(payload.bmw || 0, payload.punto || 0, payload.tolls || 0);
+        aggiornaRisultatoCassa(bmw, punto, tolls);
     } else if (id.startsWith('stat/')) {
         const type = id.split('/')[1];
-        db.run("UPDATE stats SET value = ? WHERE id = ?", [payload, type]);
+        const value = payload ?? 0;
+        db.run("UPDATE stats SET value = ? WHERE id = ?", [value, type]);
         await saveDBToIndexedDB();
-        localStats[type] = payload;
+        localStats[type] = value;
         renderStats();
     } else if (id.startsWith('check/')) {
         const itemName = id.split('/')[1];
-        if (payload.exists === false) {
+        if (payload?.exists === false) {
             db.run("DELETE FROM checklist WHERE item = ?", [itemName]);
         } else {
-            db.run("INSERT OR IGNORE INTO checklist (item, is_checked, is_custom) VALUES (?, ?, 1)", [itemName, payload.checked ? 1 : 0]);
-            db.run("UPDATE checklist SET is_checked = ? WHERE item = ?", [payload.checked ? 1 : 0, itemName]);
+            const isChecked = payload?.checked ? 1 : 0;
+            db.run("INSERT OR IGNORE INTO checklist (item, is_checked, is_custom) VALUES (?, ?, 1)", [itemName, isChecked]);
+            db.run("UPDATE checklist SET is_checked = ? WHERE item = ?", [isChecked, itemName]);
         }
         await saveDBToIndexedDB();
         renderChecklist();
@@ -69,7 +101,7 @@ async function handleCloudUpdate(data) {
         const photoId = id.split('/')[1];
         if (payload === null) {
             delete sharedPhotos[photoId];
-        } else {
+        } else if (payload) {
             sharedPhotos[photoId] = { ...payload, id: photoId };
         }
         renderCloudPhotos();
@@ -90,41 +122,59 @@ async function initSQLite() {
         db = new SQL.Database();
         console.log("SQLite: Nuovo database creato in memoria");
 
-        // Esegui lo schema da setup.sql
+        // Crea le tabelle direttamente
+        console.log("SQLite: Creazione tabelle...");
+        
         try {
-            const sqlRes = await fetch('setup.sql');
-            if (sqlRes.ok) {
-                const sqlText = await sqlRes.text();
-                db.run(sqlText);
-                console.log("SQLite: Schema setup.sql eseguito");
-            }
-        } catch (e) {
-            console.warn("SQLite: Impossibile caricare setup.sql", e);
+            // Tabella stats
+            db.run("CREATE TABLE IF NOT EXISTS stats (id TEXT PRIMARY KEY, value INTEGER)");
+            console.log("✓ Tabella stats creata");
+            
+            db.run("INSERT OR IGNORE INTO stats (id, value) VALUES ('hype', 100)");
+            db.run("INSERT OR IGNORE INTO stats (id, value) VALUES ('patience', 100)");
+            db.run("INSERT OR IGNORE INTO stats (id, value) VALUES ('social', 100)");
+            console.log("✓ Valori stats inseriti");
+            
+            // Tabella cassa - IMPORTANTE: con colonna bmw
+            db.run("CREATE TABLE IF NOT EXISTS cassa (id INTEGER PRIMARY KEY, bmw REAL, punto REAL, tolls REAL)");
+            console.log("✓ Tabella cassa creata con colonna bmw");
+            
+            db.run("INSERT OR IGNORE INTO cassa (id, bmw, punto, tolls) VALUES (1, 0, 0, 0)");
+            console.log("✓ Riga cassa inserita");
+            
+            // Tabella checklist
+            db.run("CREATE TABLE IF NOT EXISTS checklist (item TEXT PRIMARY KEY, is_checked INTEGER, is_custom INTEGER)");
+            console.log("✓ Tabella checklist creata");
+            
+        } catch (tableErr) {
+            console.error("SQLite: Errore creazione tabelle:", tableErr);
+            throw tableErr;
         }
         
-        // Verifica che la tabella cassa abbia la colonna bmw
+        // Verifica immediata che la tabella cassa esista e abbia colonna bmw
         try {
-            const tableInfo = db.exec("PRAGMA table_info(cassa)");
-            console.log("SQLite: Struttura tabella cassa:", tableInfo);
+            const testResult = db.exec("SELECT bmw FROM cassa WHERE id = 1");
+            console.log("✓ Verifica SELECT bmw riuscita:", testResult);
+        } catch (verifyErr) {
+            console.error("✗ ERRORE: Query SELECT bmw fallita:", verifyErr.message);
             
-            if (tableInfo.length > 0) {
-                const columns = tableInfo[0].values.map(col => col[1]);
-                console.log("SQLite: Colonne trovate:", columns);
-                
-                if (!columns.includes('bmw')) {
-                    console.error("SQLite: ERRORE - Colonna 'bmw' non trovata!");
-                }
+            // Debug: stampa struttura della tabella
+            try {
+                const tableInfo = db.exec("PRAGMA table_info(cassa)");
+                console.error("Struttura tabella cassa:", tableInfo);
+            } catch (pragmaErr) {
+                console.error("Errore PRAGMA:", pragmaErr);
             }
-        } catch (err) {
-            console.warn("SQLite: Errore verifica struttura:", err);
+            throw verifyErr;
         }
         
         // Salva il database nuovo in IndexedDB
         await saveDBToIndexedDB();
-        console.log("SQLite: Database nuovo salvato in IndexedDB");
+        console.log("✓ Database salvato in IndexedDB");
         
     } catch (err) {
-        console.error("Errore inizializzazione SQLite:", err);
+        console.error("✗ ERRORE CRITICO inizializzazione SQLite:", err);
+        throw err;
     }
 }
 
@@ -158,11 +208,36 @@ async function saveDBToIndexedDB() {
     const data = db.export();
     return new Promise((resolve) => {
         const request = indexedDB.open("RoadTripDB", 3);
+        request.onupgradeneeded = (e) => {
+            console.log("SQLite: Upgrade IndexedDB v3 durante save");
+            try {
+                if (e.target.result.objectStoreNames.contains("files")) {
+                    e.target.result.deleteObjectStore("files");
+                }
+            } catch (err) {}
+            e.target.result.createObjectStore("files");
+        };
         request.onsuccess = (e) => {
             const idb = e.target.result;
-            const transaction = idb.transaction(["files"], "readwrite");
-            transaction.objectStore("files").put(data, "trip.sqlite");
-            transaction.oncomplete = () => resolve();
+            try {
+                const transaction = idb.transaction(["files"], "readwrite");
+                transaction.objectStore("files").put(data, "trip.sqlite");
+                transaction.oncomplete = () => {
+                    console.log("✓ Database salvato in IndexedDB");
+                    resolve();
+                };
+                transaction.onerror = () => {
+                    console.error("✗ Errore transazione IndexedDB:", transaction.error);
+                    resolve();
+                };
+            } catch (txErr) {
+                console.error("✗ Errore creazione transazione:", txErr);
+                resolve();
+            }
+        };
+        request.onerror = () => {
+            console.error("✗ Errore apertura IndexedDB:", request.error);
+            resolve();
         };
     });
 }
@@ -188,7 +263,7 @@ let TRIP_CONFIG = {
         date: "2026-08-02T09:00:00"
     },
     group: {
-        size: 7,
+        size: 8,
         items: []
     },
     emergency: {
@@ -260,7 +335,7 @@ const aggiornaRisultatoCassa = (bmw, punto, tolls) => {
     const resultEl = document.getElementById('result');
     if (!resultEl) return;
     const totale = bmw + punto + tolls; // Somma delle spese
-    const quota = totale / (TRIP_CONFIG.group.size || 7);
+    const quota = totale / (TRIP_CONFIG.group.size || 8);
     resultEl.innerText = quota.toFixed(2);
 
     // Aggiorna i campi solo se non sono quelli attivi (per non interrompere chi sta scrivendo)
