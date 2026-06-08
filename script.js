@@ -46,9 +46,9 @@ async function handleCloudUpdate(data) {
     const { id, payload } = data;
 
     if (id === 'cassa') {
-        db.run("UPDATE cassa SET kia = ?, punto = ?, tolls = ? WHERE id = 1", [payload.kia, payload.punto, payload.tolls]);
+        db.run("UPDATE cassa SET bmw = ?, punto = ?, tolls = ? WHERE id = 1", [payload.bmw, payload.punto, payload.tolls]);
         await saveDBToIndexedDB();
-        aggiornaRisultatoCassa(payload.kia || 0, payload.punto || 0, payload.tolls || 0);
+        aggiornaRisultatoCassa(payload.bmw || 0, payload.punto || 0, payload.tolls || 0);
     } else if (id.startsWith('stat/')) {
         const type = id.split('/')[1];
         db.run("UPDATE stats SET value = ? WHERE id = ?", [payload, type]);
@@ -82,29 +82,47 @@ async function initSQLite() {
             locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
         });
 
-        // Carica il database esistente da IndexedDB
-        const savedDB = await loadDBFromIndexedDB();
-        if (savedDB) {
-            db = new SQL.Database(new Uint8Array(savedDB));
-            console.log("SQLite: Database caricato da IndexedDB");
-        } else {
-            db = new SQL.Database();
-            console.log("SQLite: Nuovo database creato");
-        }
+        // Elimina il vecchio database IndexedDB per partire da zero
+        console.log("SQLite: Cancellazione database IndexedDB vecchio...");
+        await deleteDBFromIndexedDB();
 
-        // Esegui sempre lo schema (CREATE TABLE IF NOT EXISTS è sicuro)
+        // Crea un database nuovo
+        db = new SQL.Database();
+        console.log("SQLite: Nuovo database creato in memoria");
+
+        // Esegui lo schema da setup.sql
         try {
             const sqlRes = await fetch('setup.sql');
             if (sqlRes.ok) {
                 const sqlText = await sqlRes.text();
                 db.run(sqlText);
-                console.log("SQLite: Schema sincronizzato");
+                console.log("SQLite: Schema setup.sql eseguito");
             }
         } catch (e) {
-            console.warn("SQLite: Impossibile caricare setup.sql, procedo con il database esistente.");
+            console.warn("SQLite: Impossibile caricare setup.sql", e);
         }
         
-        if (!savedDB) await saveDBToIndexedDB();
+        // Verifica che la tabella cassa abbia la colonna bmw
+        try {
+            const tableInfo = db.exec("PRAGMA table_info(cassa)");
+            console.log("SQLite: Struttura tabella cassa:", tableInfo);
+            
+            if (tableInfo.length > 0) {
+                const columns = tableInfo[0].values.map(col => col[1]);
+                console.log("SQLite: Colonne trovate:", columns);
+                
+                if (!columns.includes('bmw')) {
+                    console.error("SQLite: ERRORE - Colonna 'bmw' non trovata!");
+                }
+            }
+        } catch (err) {
+            console.warn("SQLite: Errore verifica struttura:", err);
+        }
+        
+        // Salva il database nuovo in IndexedDB
+        await saveDBToIndexedDB();
+        console.log("SQLite: Database nuovo salvato in IndexedDB");
+        
     } catch (err) {
         console.error("Errore inizializzazione SQLite:", err);
     }
@@ -113,8 +131,16 @@ async function initSQLite() {
 // Persistenza Database via IndexedDB
 function loadDBFromIndexedDB() {
     return new Promise((resolve) => {
-        const request = indexedDB.open("RoadTripDB", 1);
-        request.onupgradeneeded = (e) => e.target.result.createObjectStore("files");
+        const request = indexedDB.open("RoadTripDB", 3);
+        request.onupgradeneeded = (e) => {
+            console.log("SQLite: Upgrade IndexedDB v3 - database ripulito");
+            try {
+                if (e.target.result.objectStoreNames.contains("files")) {
+                    e.target.result.deleteObjectStore("files");
+                }
+            } catch (err) {}
+            e.target.result.createObjectStore("files");
+        };
         request.onsuccess = (e) => {
             const idb = e.target.result;
             const transaction = idb.transaction(["files"], "readonly");
@@ -131,13 +157,24 @@ async function saveDBToIndexedDB() {
     if (!db) return;
     const data = db.export();
     return new Promise((resolve) => {
-        const request = indexedDB.open("RoadTripDB", 1);
+        const request = indexedDB.open("RoadTripDB", 3);
         request.onsuccess = (e) => {
             const idb = e.target.result;
             const transaction = idb.transaction(["files"], "readwrite");
             transaction.objectStore("files").put(data, "trip.sqlite");
             transaction.oncomplete = () => resolve();
         };
+    });
+}
+
+async function deleteDBFromIndexedDB() {
+    return new Promise((resolve) => {
+        const request = indexedDB.deleteDatabase("RoadTripDB");
+        request.onsuccess = () => {
+            console.log("SQLite: Database IndexedDB eliminato");
+            resolve();
+        };
+        request.onerror = () => resolve();
     });
 }
 
@@ -205,30 +242,30 @@ window.naviga = (platform) => {
 
 // 4. CASSA CARBURANTE (Real-time)
 window.salvaCassaCloud = async () => {
-    const kia = parseFloat(document.getElementById('costKia')?.value) || 0;
+    const bmw = parseFloat(document.getElementById('costBmw')?.value) || 0;
     const punto = parseFloat(document.getElementById('costPunto')?.value) || 0;
     const tolls = parseFloat(document.getElementById('costTolls')?.value) || 0;
 
     // 1. Locale
-    db.run("UPDATE cassa SET kia = ?, punto = ?, tolls = ? WHERE id = 1", [kia, punto, tolls]);
+    db.run("UPDATE cassa SET bmw = ?, punto = ?, tolls = ? WHERE id = 1", [bmw, punto, tolls]);
     await saveDBToIndexedDB();
     
     // 2. Supabase
-    pushToCloud('cassa', { kia, punto, tolls });
+    pushToCloud('cassa', { bmw, punto, tolls });
     
-    aggiornaRisultatoCassa(kia, punto, tolls);
+    aggiornaRisultatoCassa(bmw, punto, tolls);
 };
 
-const aggiornaRisultatoCassa = (kia, punto, tolls) => {
+const aggiornaRisultatoCassa = (bmw, punto, tolls) => {
     const resultEl = document.getElementById('result');
     if (!resultEl) return;
-    const totale = kia + punto + tolls; // Somma delle spese
+    const totale = bmw + punto + tolls; // Somma delle spese
     const quota = totale / (TRIP_CONFIG.group.size || 7);
     resultEl.innerText = quota.toFixed(2);
 
     // Aggiorna i campi solo se non sono quelli attivi (per non interrompere chi sta scrivendo)
     const active = document.activeElement?.id;
-    if (active !== 'costKia')   { const el = document.getElementById('costKia');   if (el) el.value = kia || ""; }
+    if (active !== 'costBmw')   { const el = document.getElementById('costBmw');   if (el) el.value = bmw || ""; }
     if (active !== 'costPunto') { const el = document.getElementById('costPunto'); if (el) el.value = punto || ""; }
     if (active !== 'costTolls') { const el = document.getElementById('costTolls'); if (el) el.value = tolls || ""; }
 };
@@ -427,7 +464,7 @@ const renderEmergency = () => {
     `;
 };
 
-// 11. PROGRESSO VIAGGIO (Distanza e GPS)
+
 const MILAN_COORDS = { lat: 45.4642, lon: 9.1900 };
 
 const getDistanceInKm = (lat1, lon1, lat2, lon2) => {
@@ -443,9 +480,7 @@ const getDistanceInKm = (lat1, lon1, lat2, lon2) => {
 
 const updateDistance = (currentLat, currentLon) => {
     const { lat: destLat, lon: destLon } = TRIP_CONFIG.destination;
-    const ROAD_FACTOR = 1.3; // Fattore per passare da linea d'aria a percorso stradale reale
-    
-    // Calcoliamo la distanza totale fissa da Milano per la barra di progresso
+    const ROAD_FACTOR = 1.3; 
     const totalDistance = getDistanceInKm(MILAN_COORDS.lat, MILAN_COORDS.lon, destLat, destLon) * ROAD_FACTOR;
     const currentDistance = getDistanceInKm(currentLat, currentLon, destLat, destLon) * ROAD_FACTOR;
     
@@ -462,9 +497,8 @@ const updateDistance = (currentLat, currentLon) => {
     }
 };
 
-// Updated initGeolocation to fallback to city input if manual permission denied
 const initGeolocation = () => {
-    // Richiesta esplicita all'utente
+    
     const wantsGPS = confirm("Vuoi attivare la geolocalizzazione per vedere a che punto sei del viaggio? 🚗\n(Verrà aperta anche una mappa con la posizione attuale)");
     
     if (wantsGPS && navigator.geolocation) {
@@ -477,17 +511,17 @@ const initGeolocation = () => {
             },
             (err) => {
                 console.warn('Geolocalizzazione negata');
-                updateDistance(MILAN_COORDS.lat, MILAN_COORDS.lon); // Fallback a Milano
+                updateDistance(MILAN_COORDS.lat, MILAN_COORDS.lon); 
             }
         );
     } else {
-        updateDistance(MILAN_COORDS.lat, MILAN_COORDS.lon); // Fallback a Milano
+        updateDistance(MILAN_COORDS.lat, MILAN_COORDS.lon); 
     }
 };
 
-// INIZIALIZZAZIONE CON FETCH
+
 const initApp = async () => {
-    // Inizializza SQLite e Supabase
+    
     await initSQLite();
     initCloud();
 
@@ -501,7 +535,7 @@ const initApp = async () => {
         console.warn("Esecuzione locale senza server", e);
     }
     
-    // Caricamento dati iniziali da Supabase (Opzionale, SQLite è primario)
+
     if (supabase) {
         const { data } = await supabase.from('roadtrip_sync').select('*');
         if (data) {
@@ -511,7 +545,7 @@ const initApp = async () => {
 
     // Caricamento dati iniziali da SQLite per UI
     try {
-        const cassaRes = db.exec("SELECT kia, punto, tolls FROM cassa WHERE id = 1");
+        const cassaRes = db.exec("SELECT bmw, punto, tolls FROM cassa WHERE id = 1");
         if (cassaRes.length > 0) {
             const row = cassaRes[0].values[0];
             aggiornaRisultatoCassa(row[0] || 0, row[1] || 0, row[2] || 0);
@@ -543,14 +577,11 @@ const initApp = async () => {
     initObserver();
 };
 
-// 12. CLOUD FOTO CONDIVISO
-// -------------------------------------------------------
 
-// Mappa locale delle foto ricevute da Gun (id -> {data, by, ts})
 const sharedPhotos = {};
 let lightboxCurrentId = null;
 
-// --- Gestione Nome Utente ---
+
 window.savePhotoName = () => {
     const input = document.getElementById('photoUserName');
     const name = input ? input.value.trim() : '';
@@ -585,14 +616,14 @@ const initPhotoSection = () => {
     }
 };
 
-// --- Compressione Immagine (Canvas) ---
+
 const compressImage = (file) => {
     return new Promise((resolve) => {
         const reader = new FileReader();
         reader.onload = (e) => {
             const img = new Image();
             img.onload = () => {
-                const MAX = 700; // px max lato lungo
+                const MAX = 700; 
                 let { width, height } = img;
                 if (width > height && width > MAX) {
                     height = Math.round((height * MAX) / width);
@@ -613,7 +644,7 @@ const compressImage = (file) => {
     });
 };
 
-// --- Upload Foto su Gun ---
+
 window.handlePhotoUpload = async (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -744,7 +775,7 @@ window.deleteCloudPhoto = (id) => {
 
 
 // 13. STATO SQUADRA
-// Stato locale stats (aggiornato in tempo reale da Gun)
+// Stato locale stats 
 const localStats = { hype: 100, patience: 100, social: 100 };
 
 const renderStats = () => {

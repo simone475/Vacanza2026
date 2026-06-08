@@ -14,13 +14,13 @@ INSERT OR IGNORE INTO stats (id, value) VALUES ('social', 100);
 -- Tabella Cassa Automatica
 CREATE TABLE IF NOT EXISTS cassa (
     id INTEGER PRIMARY KEY, 
-    kia REAL, 
+    bmw REAL, 
     punto REAL, 
     tolls REAL
 );
 
 -- Inserimento riga iniziale per la cassa
-INSERT OR IGNORE INTO cassa (id, kia, punto, tolls) VALUES (1, 0, 0, 0);
+INSERT OR IGNORE INTO cassa (id, bmw, punto, tolls) VALUES (1, 0, 0, 0);
 
 -- Tabella Checklist
 CREATE TABLE IF NOT EXISTS checklist (
