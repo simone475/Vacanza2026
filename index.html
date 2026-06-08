@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Road Trip Hub 🚀</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
@@ -24,6 +27,7 @@
 
 </head>
 <body>
+    <script>console.log('🎯 HTML NUOVO caricato - cache bypass attivo');</script>
     <div class="container">
         <header>
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -220,6 +224,12 @@
         </div>
     </div>
 
-    <script src="script.js?v=20260608"></script>
+    <script>
+        // Forza il caricamento del nuovo script.js byppassando la cache
+        const ts = Math.random() * 100000;
+        const script = document.createElement('script');
+        script.src = 'script.js?nocache=' + ts;
+        document.body.appendChild(script);
+    </script>
 </body>
 </html>

@@ -1,6 +1,20 @@
 var db; // Database SQLite globale (var allows redeclaration on reload)
 var supabase; // Client Supabase per sincronizzazione cloud (var allows redeclaration on reload)
 
+// VERSIONE DEL FILE PER DEBUG
+console.log("🔧 SCRIPT.JS v20260611 caricato - Petre e Alessio sono qui!");
+
+// Pulisci immediatamente IndexedDB al caricamento
+(function() {
+    const dbs = indexedDB.databases ? indexedDB.databases() : [];
+    Promise.resolve(dbs).then(list => {
+        list.forEach(db => {
+            console.log(`🗑️ Eliminando IndexedDB: ${db.name}`);
+            indexedDB.deleteDatabase(db.name);
+        });
+    });
+})();
+
 // Filtro per sopprimere i warning non critici di Spotify/PlayReady
 (function() {
     const originalWarn = console.warn;
