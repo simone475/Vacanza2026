@@ -274,10 +274,13 @@ let TRIP_CONFIG = {
         ]
     },
     team: [
-        {id: "pilota", role: "Il Pilota", name: "Marco", icon: "🏎️", stats: ["+10 Riflessi", "-5 Pazienza nel traffico"]},
-        {id: "dj", role: "Il DJ", name: "Luca", icon: "🎧", stats: ["+10 Selezione musicale", "-10 Accetta critiche"]},
-        {id: "panini", role: "Quello dei Panini", name: "Giovanni", icon: "🥪", stats: ["+15 Approvvigionamento carboidrati", "-5 Spazio libero"]},
-        {id: "navigatore", role: "Il Navigatore", name: "Simone", icon: "🗺️", stats: ["+20 Capacità di Google Maps", "-10 Orientamento reale"]}
+        {id: "pilota1", role: "Il Pilota", name: "Simone", icon: "🏎️", stats: ["+10 Riflessi", "-10 Pazienza nel traffico"]},
+        {id: "pilota2", role: "Il Pilota", name: "Petre", icon: "🏎️", stats: ["+10 Precisione di manovra", "-10 Tolleranza ai passeggeri che dormono"]},
+        {id: "dj", role: "La DJ", name: "Sara", icon: "🎧", stats: ["+10 Selezione musicale", "-10 Accetta critiche"]},
+        {id: "curve", role: "Soffro le curve", name: "Stella", icon: "🤢", stats: ["+10 Pretesa di sedersi davanti", "-10 Resistenza alle curve"]},
+        {id: "stories", role: "Il racconta storie", name: "Matteo", icon: "📖", stats: ["+15 Storie divertenti", "-10 Sonnolenza"]},
+        {id: "vigile", role: "Sempre vigile", name: "Alessio", icon: "👀", stats: ["+50 Resistenza al sonno", "-20 Silenzio"]},
+        {id: "navigatore", role: "La Navigatrice", name: "Noelia", icon: "🗺️", stats: ["+20 Capacità di lettura di Google Maps", "-10 Orientamento reale"]}
     ],
     bingo: [
         "Macchina gialla", "Tizio che dorme a bocca aperta", "Autogrill con nome strano",
