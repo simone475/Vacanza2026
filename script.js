@@ -90,13 +90,14 @@ async function handleCloudUpdate(data) {
         localStats[type] = value;
         renderStats();
     } else if (id.startsWith('check/')) {
-        const itemName = id.split('/')[1];
+        // Decodifica il nome dell'item (supporta nomi con '/' multipli)
+        const itemName = id.substring('check/'.length);
         if (payload?.exists === false) {
             db.run("DELETE FROM checklist WHERE item = ?", [itemName]);
         } else {
             const isChecked = payload?.checked ? 1 : 0;
-            db.run("INSERT OR IGNORE INTO checklist (item, is_checked, is_custom) VALUES (?, ?, 1)", [itemName, isChecked]);
-            db.run("UPDATE checklist SET is_checked = ? WHERE item = ?", [isChecked, itemName]);
+            // UPSERT: aggiunge se non esiste, aggiorna se esiste
+            db.run("INSERT OR REPLACE INTO checklist (item, is_checked, is_custom) VALUES (?, ?, 1)", [itemName, isChecked]);
         }
         await saveDBToIndexedDB();
         renderChecklist();
@@ -128,13 +129,15 @@ async function initSQLite() {
             locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
         });
 
-        // Elimina il vecchio database IndexedDB per partire da zero
-        console.log("SQLite: Cancellazione database IndexedDB vecchio...");
-        await deleteDBFromIndexedDB();
-
-        // Crea un database nuovo
-        db = new SQL.Database();
-        console.log("SQLite: Nuovo database creato in memoria");
+        // NON cancelliamo più il DB: carichiamo quello salvato (se esiste)
+        const savedData = await loadDBFromIndexedDB();
+        if (savedData) {
+            db = new SQL.Database(savedData);
+            console.log("SQLite: Database caricato da IndexedDB");
+        } else {
+            db = new SQL.Database();
+            console.log("SQLite: Nuovo database creato in memoria");
+        }
 
         // Crea le tabelle direttamente
         console.log("SQLite: Creazione tabelle...");
