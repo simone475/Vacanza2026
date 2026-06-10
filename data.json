@@ -6,7 +6,7 @@
         "date": "2026-08-02T09:00:00"
     },
     "group": {
-        "size": 7,
+        "size": 8,
         "items": []
     },
     "emergency": {
@@ -65,6 +65,13 @@
             "name": "Noelia",
             "icon": "🗺️",
             "stats": ["+20 Capacità di lettura di Google Maps", "-10 Orientamento reale"]
+        },
+        {
+            "id": "noemie",
+            "role": "La Social Media Manager",
+            "name": "Noemie",
+            "icon": "📸",
+            "stats": ["+20 Foto estetiche", "-15 Pazienza per i selfie sfocati"]
         }
     ],
     "bingo": [

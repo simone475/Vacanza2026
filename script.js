@@ -294,7 +294,8 @@ let TRIP_CONFIG = {
         {id: "curve", role: "Soffro le curve", name: "Stella", icon: "🤢", stats: ["+10 Pretesa di sedersi davanti", "-10 Resistenza alle curve"]},
         {id: "stories", role: "Il racconta storie", name: "Matteo", icon: "📖", stats: ["+15 Storie divertenti", "-10 Sonnolenza"]},
         {id: "vigile", role: "Sempre vigile", name: "Alessio", icon: "👀", stats: ["+50 Resistenza al sonno", "-20 Silenzio"]},
-        {id: "navigatore", role: "La Navigatrice", name: "Noelia", icon: "🗺️", stats: ["+20 Capacità di lettura di Google Maps", "-10 Orientamento reale"]}
+        {id: "navigatore", role: "La Navigatrice", name: "Noelia", icon: "🗺️", stats: ["+20 Capacità di lettura di Google Maps", "-10 Orientamento reale"]},
+        {id: "noemie", role: "La Social Media Manager", name: "Noemie", icon: "📸", stats: ["+20 Foto estetiche", "-15 Pazienza per i selfie sfocati"]}
     ],
     bingo: [
         "Macchina gialla", "Tizio che dorme a bocca aperta", "Autogrill con nome strano",
@@ -352,7 +353,7 @@ const aggiornaRisultatoCassa = (bmw, punto, tolls) => {
     const resultEl = document.getElementById('result');
     if (!resultEl) return;
     const totale = bmw + punto + tolls; // Somma delle spese
-    const quota = totale / (TRIP_CONFIG.group.size || 8);
+    const quota = totale / 8; // Divisione per 8 persone (hardcoded)
     resultEl.innerText = quota.toFixed(2);
 
     // Aggiorna i campi solo se non sono quelli attivi (per non interrompere chi sta scrivendo)
@@ -590,25 +591,24 @@ const updateDistance = (currentLat, currentLon) => {
 };
 
 const initGeolocation = () => {
-    
-    const wantsGPS = confirm("Vuoi attivare la geolocalizzazione per vedere a che punto sei del viaggio? 🚗\n(Verrà aperta anche una mappa con la posizione attuale)");
-    
-    if (wantsGPS && navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                const { lat: destLat, lon: destLon } = TRIP_CONFIG.destination;
-                updateDistance(pos.coords.latitude, pos.coords.longitude);
-                // Suggerimento di usare Maps
-                window.open(`https://www.google.com/maps/dir/${pos.coords.latitude},${pos.coords.longitude}/${destLat},${destLon}`, '_blank');
-            },
-            (err) => {
-                console.warn('Geolocalizzazione negata');
-                updateDistance(MILAN_COORDS.lat, MILAN_COORDS.lon); 
-            }
-        );
-    } else {
-        updateDistance(MILAN_COORDS.lat, MILAN_COORDS.lon); 
+    if (!navigator.geolocation) {
+        console.warn("⚠️ GPS non supportato o disattivato. Nota: su mobile/web, la geolocalizzazione richiede HTTPS (o localhost) per funzionare.");
+        updateDistance(MILAN_COORDS.lat, MILAN_COORDS.lon);
+        return;
     }
+
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            console.log("📍 Posizione GPS ottenuta con successo:", pos.coords.latitude, pos.coords.longitude);
+            updateDistance(pos.coords.latitude, pos.coords.longitude);
+        },
+        (err) => {
+            console.warn("⚠️ Autorizzazione GPS negata o errore:", err.message);
+            // Fallback alle coordinate di Milano
+            updateDistance(MILAN_COORDS.lat, MILAN_COORDS.lon);
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+    );
 };
 
 
@@ -626,7 +626,7 @@ const initApp = async () => {
 
         try {
             console.log("📍 initApp: Fetching data.json...");
-            const res = await fetch('data.json');
+            const res = await fetch('data.json?nocache=' + (Math.random() * 100000));
             if (res.ok) {
                 TRIP_CONFIG = await res.json();
                 console.log("✅ Dati caricati da JSON");
@@ -914,4 +914,8 @@ window.updateStat = async (type, change) => {
 const savedPhotos = JSON.parse(localStorage.getItem('local_photos') || "{}");
 Object.assign(sharedPhotos, savedPhotos);
 
-document.addEventListener('DOMContentLoaded', initApp);
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}
