@@ -1,8 +1,69 @@
 var db; // Database SQLite globale (var allows redeclaration on reload)
 var supabase; // Client Supabase per sincronizzazione cloud (var allows redeclaration on reload)
 
+// --- CACHE FOTO IN INDEXEDDB (Previene crash di localStorage da 5MB) ---
+const PhotoStore = {
+    open() {
+        return new Promise((resolve) => {
+            const request = indexedDB.open("RoadTripPhotos", 1);
+            request.onupgradeneeded = (e) => {
+                if (!e.target.result.objectStoreNames.contains("images")) {
+                    e.target.result.createObjectStore("images");
+                }
+            };
+            request.onsuccess = (e) => resolve(e.target.result);
+            request.onerror = () => resolve(null);
+        });
+    },
+    async get(id) {
+        const db = await this.open();
+        if (!db) return null;
+        return new Promise((resolve) => {
+            const tx = db.transaction("images", "readonly");
+            const req = tx.objectStore("images").get(id);
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => resolve(null);
+        });
+    },
+    async set(id, data) {
+        const db = await this.open();
+        if (!db) return;
+        return new Promise((resolve) => {
+            const tx = db.transaction("images", "readwrite");
+            tx.objectStore("images").put(data, id);
+            tx.oncomplete = () => resolve();
+        });
+    },
+    async delete(id) {
+        const db = await this.open();
+        if (!db) return;
+        return new Promise((resolve) => {
+            const tx = db.transaction("images", "readwrite");
+            tx.objectStore("images").delete(id);
+            tx.oncomplete = () => resolve();
+        });
+    }
+};
+
+function dataURLtoBlob(dataurl) {
+    try {
+        const arr = dataurl.split(',');
+        const mime = arr[0].match(/:(.*?);/)[1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new Blob([u8arr], { type: mime });
+    } catch (e) {
+        console.error("Errore conversione base64 in blob:", e);
+        return null;
+    }
+}
+
 // VERSIONE DEL FILE PER DEBUG
-console.log("🔧 SCRIPT.JS v20260611 caricato - Petre e Alessio sono qui!");
+console.log("🔧 SCRIPT.JS v20260611.1 caricato - Cache IndexedDB attiva");
 
 // Filtro per sopprimere i warning non critici di Spotify/PlayReady
 (function() {
@@ -105,10 +166,41 @@ async function handleCloudUpdate(data) {
         const photoId = id.split('/')[1];
         if (payload === null) {
             delete sharedPhotos[photoId];
+            const savedLocal = JSON.parse(localStorage.getItem('local_photos') || "{}");
+            delete savedLocal[photoId];
+            localStorage.setItem('local_photos', JSON.stringify(savedLocal));
+            await PhotoStore.delete(photoId);
         } else if (payload) {
-            sharedPhotos[photoId] = { ...payload, id: photoId };
+            if (payload.data) {
+                // Salviamo l'immagine in base64 in IndexedDB per non pesare su localStorage
+                await PhotoStore.set(photoId, payload.data);
+                sharedPhotos[photoId] = {
+                    id: photoId,
+                    by: payload.by,
+                    ts: payload.ts,
+                    url: null
+                };
+            } else {
+                // Usiamo la URL pubblica di Supabase Storage
+                sharedPhotos[photoId] = {
+                    id: photoId,
+                    by: payload.by,
+                    ts: payload.ts,
+                    url: payload.url
+                };
+            }
+            localStorage.setItem('local_photos', JSON.stringify(sharedPhotos));
         }
         renderCloudPhotos();
+    } else if (id.startsWith('quote/')) {
+        const quoteId = id.split('/')[1];
+        if (payload === null) {
+            db.run("DELETE FROM quotes WHERE id = ?", [quoteId]);
+        } else {
+            db.run("INSERT OR REPLACE INTO quotes (id, text, author, ts) VALUES (?, ?, ?, ?)", [quoteId, payload.text, payload.author, payload.ts]);
+        }
+        await saveDBToIndexedDB();
+        renderQuotes();
     }
 }
 
@@ -162,6 +254,10 @@ async function initSQLite() {
             // Tabella checklist
             db.run("CREATE TABLE IF NOT EXISTS checklist (item TEXT PRIMARY KEY, is_checked INTEGER, is_custom INTEGER)");
             console.log("✓ Tabella checklist creata");
+            
+            // Tabella quotes
+            db.run("CREATE TABLE IF NOT EXISTS quotes (id TEXT PRIMARY KEY, text TEXT, author TEXT, ts INTEGER)");
+            console.log("✓ Tabella quotes creata");
             
         } catch (tableErr) {
             console.error("SQLite: Errore creazione tabelle:", tableErr);
@@ -409,6 +505,22 @@ window.sendCheckToCloud = async function(item, status) {
     pushToCloud(`check/${item}`, { exists: true, checked: status });
     
     renderChecklist();
+
+    // Effetto coriandoli quando si spunta un elemento!
+    if (status && typeof confetti === 'function') {
+        confetti({ particleCount: 30, spread: 40, origin: { y: 0.85 } });
+        
+        // Verifica se tutti gli elementi sono spuntati per una celebrazione completa
+        try {
+            const checkRes = db.exec("SELECT COUNT(*) FROM checklist WHERE is_checked = 0");
+            const remaining = checkRes.length > 0 ? checkRes[0].values[0][0] : 0;
+            if (remaining === 0) {
+                setTimeout(() => {
+                    confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+                }, 300);
+            }
+        } catch (e) {}
+    }
 };
 
 // Funzione per aggiungere nuovi oggetti
@@ -530,6 +642,21 @@ window.toggleBingo = (el) => {
     
     el.classList.toggle('checked', isChecked);
     localStorage.setItem(`bingo_item_${idx}`, isChecked);
+
+    if (isChecked && typeof confetti === 'function') {
+        confetti({
+            particleCount: 50,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0, y: 0.8 }
+        });
+        confetti({
+            particleCount: 50,
+            angle: 120,
+            spread: 55,
+            origin: { x: 1, y: 0.8 }
+        });
+    }
 };
 
 // 10. RENDER EMERGENCY
@@ -678,6 +805,7 @@ const initApp = async () => {
         initPhotoSection();
         renderCloudPhotos();
         renderStats();
+        renderQuotes();
         
         initObserver();
         console.log("✅ initApp: COMPLETE");
@@ -774,20 +902,60 @@ window.handlePhotoUpload = async (e) => {
         try {
             const compressed = await compressImage(file);
             const photoId = `photo_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+            
+            let publicUrl = null;
+            
+            // Prova l'upload binario su Supabase Storage
+            if (supabase) {
+                try {
+                    const blob = dataURLtoBlob(compressed);
+                    if (blob) {
+                        const fileName = `${photoId}.jpg`;
+                        const { data, error } = await supabase.storage.from('photos').upload(fileName, blob, {
+                            contentType: 'image/jpeg',
+                            upsert: true
+                        });
+                        
+                        if (error) {
+                            console.warn("Supabase Storage error:", error.message);
+                        } else {
+                            const { data: urlData } = supabase.storage.from('photos').getPublicUrl(fileName);
+                            publicUrl = urlData?.publicUrl;
+                        }
+                    }
+                } catch (storageErr) {
+                    console.warn("Supabase Storage fail fallback:", storageErr);
+                }
+            }
 
-            const photoObj = {
-                data: compressed,
+            // Metadati da sincronizzare
+            const photoMeta = {
                 by: userName,
-                ts: Date.now()
+                ts: Date.now(),
+                url: publicUrl
             };
 
-            // 1. Locale
-            sharedPhotos[photoId] = { ...photoObj, id: photoId };
+            const syncPayload = { ...photoMeta };
+            if (!publicUrl) {
+                syncPayload.data = compressed; // Manda il base64 in Supabase come fallback
+            }
+
+            // 1. Salvataggio locale in PhotoStore (IndexedDB)
+            await PhotoStore.set(photoId, compressed);
+
+            // 2. Metadati leggeri in memoria
+            sharedPhotos[photoId] = {
+                id: photoId,
+                by: userName,
+                ts: photoMeta.ts,
+                url: publicUrl
+            };
+            
             localStorage.setItem('local_photos', JSON.stringify(sharedPhotos));
             renderCloudPhotos();
 
-            // 2. Supabase
-            pushToCloud(`photo/${photoId}`, photoObj);
+            // 3. Spingiamo su Supabase (se c'è la URL usa quella, altrimenti invia Base64 compressa come fallback)
+            pushToCloud(`photo/${photoId}`, syncPayload);
 
         } catch (err) {
             console.error('Errore compressione foto:', err);
@@ -811,7 +979,7 @@ const renderCloudPhotos = () => {
     if (!gallery) return;
 
     const photos = Object.values(sharedPhotos)
-        .filter(p => p && p.data)
+        .filter(p => p && (p.url || p.id))
         .sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
     if (countEl) {
@@ -827,9 +995,10 @@ const renderCloudPhotos = () => {
 
     gallery.innerHTML = photos.map(photo => {
         const date = photo.ts ? new Date(photo.ts).toLocaleDateString('it-IT', { day:'2-digit', month:'short' }) : '';
+        const imgSrc = photo.url || 'data:image/svg+xml;charset=utf-8,%3Csvg xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27 width%3D%271%27 height%3D%271%27 viewBox%3D%270 0 1 1%27%2F%3E';
         return `
             <div class="cloud-photo-card" onclick="openLightbox('${photo.id}')">
-                <img src="${photo.data}" alt="Foto di ${photo.by}" loading="lazy">
+                <img id="img-${photo.id}" src="${imgSrc}" alt="Foto di ${photo.by}" loading="lazy">
                 <div class="cloud-photo-tag">
                     <span>👤 ${photo.by || 'Anonimo'}</span>
                     <span style="opacity:0.7; font-weight:normal;">${date}</span>
@@ -838,17 +1007,36 @@ const renderCloudPhotos = () => {
             </div>
         `;
     }).join('');
+
+    // Carica asincronamente da IndexedDB per le foto che non hanno URL
+    photos.forEach(async (photo) => {
+        if (!photo.url) {
+            const cachedData = await PhotoStore.get(photo.id);
+            const imgEl = document.getElementById(`img-${photo.id}`);
+            if (imgEl && cachedData) {
+                imgEl.src = cachedData;
+            }
+        }
+    });
 };
 
 // --- Lightbox ---
-window.openLightbox = (id) => {
+window.openLightbox = async (id) => {
     const photo = sharedPhotos[id];
     if (!photo) return;
     lightboxCurrentId = id;
     const lb = document.getElementById('photoLightbox');
     const img = document.getElementById('lightboxImg');
     const cap = document.getElementById('lightboxCaption');
-    if (img) img.src = photo.data;
+    if (img) {
+        if (photo.url) {
+            img.src = photo.url;
+        } else {
+            img.src = 'data:image/svg+xml;charset=utf-8,%3Csvg xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27 width%3D%271%27 height%3D%271%27%2F%3E';
+            const cachedData = await PhotoStore.get(photo.id);
+            if (cachedData) img.src = cachedData;
+        }
+    }
     if (cap) {
         const date = photo.ts ? new Date(photo.ts).toLocaleString('it-IT') : '';
         cap.innerText = `📸 Da: ${photo.by || 'Anonimo'}  ·  ${date}`;
@@ -870,10 +1058,11 @@ window.deleteLightboxPhoto = () => {
 };
 
 // --- Elimina Foto ---
-window.deleteCloudPhoto = (id) => {
+window.deleteCloudPhoto = async (id) => {
     // 1. Locale
     delete sharedPhotos[id];
     localStorage.setItem('local_photos', JSON.stringify(sharedPhotos));
+    await PhotoStore.delete(id);
     
     // 2. Supabase
     pushToCloud(`photo/${id}`, null);
@@ -911,6 +1100,114 @@ window.updateStat = async (type, change) => {
 
     // 2. Supabase
     pushToCloud(`stat/${type}`, val);
+};
+
+// --- LOGICA BACHECA DELLE PERLE ---
+window.addQuote = async () => {
+    const textInput = document.getElementById('quoteInput');
+    const authorInput = document.getElementById('quoteAuthor');
+    if (!textInput || !authorInput) return;
+    const text = textInput.value.trim();
+    const author = authorInput.value.trim();
+    
+    if (!text) { alert("Inserisci una perla!"); return; }
+    if (!author) { alert("Chi l'ha detta?"); return; }
+
+    const quoteId = `q_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+    const ts = Date.now();
+
+    // 1. Locale SQLite
+    db.run("INSERT OR REPLACE INTO quotes (id, text, author, ts) VALUES (?, ?, ?, ?)", [quoteId, text, author, ts]);
+    await saveDBToIndexedDB();
+
+    // 2. Supabase
+    pushToCloud(`quote/${quoteId}`, { text, author, ts });
+
+    textInput.value = '';
+    authorInput.value = '';
+    renderQuotes();
+    
+    // Coriandoli!
+    if (typeof confetti === 'function') {
+        confetti({ particleCount: 30, spread: 40, origin: { y: 0.8 } });
+    }
+};
+
+window.deleteQuote = async (quoteId) => {
+    // 1. Locale SQLite
+    db.run("DELETE FROM quotes WHERE id = ?", [quoteId]);
+    await saveDBToIndexedDB();
+
+    // 2. Supabase
+    pushToCloud(`quote/${quoteId}`, null);
+
+    renderQuotes();
+};
+
+const renderQuotes = () => {
+    const container = document.getElementById('quotesContainer');
+    if (!container || !db) return;
+
+    container.innerHTML = '';
+
+    try {
+        const res = db.exec("SELECT id, text, author, ts FROM quotes ORDER BY ts DESC");
+        const rows = res.length > 0 ? res[0].values : [];
+
+        if (rows.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color:rgba(255,255,255,0.4); font-size:0.8rem; padding:15px;">Nessuna perla memorizzata... Ancora! 🎙️</p>';
+            return;
+        }
+
+        rows.forEach(row => {
+            const id = row[0];
+            const text = row[1];
+            const author = row[2];
+            const ts = row[3];
+            const dateStr = new Date(ts).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+
+            const div = document.createElement('div');
+            div.className = 'quote-card';
+            div.innerHTML = `
+                <p class="quote-text">« ${text} »</p>
+                <div class="quote-author">
+                    <span>— ${author} (${dateStr})</span>
+                    <button class="quote-delete-btn" onclick="deleteQuote('${id}')" title="Elimina">✕</button>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    } catch (e) {
+        console.warn("Errore rendering quotes:", e);
+    }
+};
+
+// --- LOGICA EVENTI RAPIDI STATISTICHE ---
+window.triggerQuickEvent = async (event) => {
+    if (event === 'coda') {
+        alert("🚨 Coda in autostrada! Il traffico snerva i piloti e ammoscia l'hype...");
+        await updateStat('hype', -15);
+        await updateStat('patience', -20);
+        await updateStat('social', -10);
+    } else if (event === 'caffe') {
+        alert("☕ Pausa caffè all'autogrill! Ricarichiamo le batterie e l'hype sale!");
+        await updateStat('hype', 15);
+        await updateStat('patience', 20);
+        await updateStat('social', 25);
+    } else if (event === 'sara') {
+        alert("🎵 Sara DJ ha messo una hit estiva pazzesca! L'Hype vola, ma occhio alla pazienza dei piloti!");
+        await updateStat('hype', 30);
+        await updateStat('patience', -15);
+    } else if (event === 'mare') {
+        alert("🌊 SI PARTE SUL SERIO! Si vede il mare all'orizzonte! Hype ed energia al 100%!");
+        await updateStat('hype', 100);
+        await updateStat('patience', 100);
+        await updateStat('social', 100);
+        
+        if (typeof confetti === 'function') {
+            confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+        }
+    }
 };
 
 // Caricamento foto locali all'avvio

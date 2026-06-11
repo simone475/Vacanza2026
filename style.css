@@ -1,15 +1,112 @@
-/* --- CONFIGURAZIONE COLORI TRAMONTO --- */
+/* --- DESIGN SYSTEM HSL & CONFIGURAZIONE COLORI --- */
 :root {
-    --bg-dark: #1e112a; /* Prugna scuro */
-    --glass-bg: rgba(45, 20, 58, 0.6); /* Viola semitrasparente */
-    --accent-blue: #f97316; /* Arancione tramonto */
-    --accent-green: #ec4899; /* Rosa fluo */
-    --accent-road: #d946ef; /* Fucsia per la strada */
-    --text-main: #fdf4ff;
-    --text-dim: #fbcfe8;
+    --bg-base: hsl(270, 43%, 6%);             /* Viola notte profondo */
+    --bg-card: hsla(270, 43%, 11%, 0.6);       /* Viola trasparente (vetro) */
+    --bg-card-hover: hsla(270, 43%, 15%, 0.75);
+    --border-card: hsla(270, 20%, 60%, 0.12);
+    --border-card-hover: hsla(327, 96%, 60%, 0.25);
+    --accent-primary: hsl(25, 95%, 53%);       /* Arancione Sunset */
+    --accent-secondary: hsl(327, 96%, 60%);     /* Rosa neon */
+    --accent-tertiary: hsl(290, 85%, 65%);      /* Fucsia */
+    --accent-blue: hsl(210, 100%, 55%);        /* Blu neon */
+    --accent-green: hsl(150, 100%, 45%);       /* Verde neon */
+    --text-main: hsl(300, 100%, 98%);
+    --text-dim: hsl(315, 60%, 85%);
+    --shadow-main: 0 16px 32px -8px hsla(0, 0%, 0%, 0.6);
+    --shadow-glow: 0 0 20px -3px var(--accent-secondary);
 }
 
-/* --- ROADMAP LAYOUT --- */
+/* --- RESET & BASE --- */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+    background-color: var(--bg-base);
+    color: var(--text-main);
+    line-height: 1.6;
+    display: flex;
+    justify-content: center;
+    padding: 20px 10px;
+    background-image: 
+        radial-gradient(at 10% 20%, hsla(25, 95%, 53%, 0.05) 0px, transparent 50%),
+        radial-gradient(at 90% 80%, hsla(327, 96%, 60%, 0.05) 0px, transparent 50%);
+    background-attachment: fixed;
+}
+
+/* --- SCROLLBAR PERSONALIZZATA --- */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: var(--bg-base);
+}
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--accent-primary), var(--accent-secondary));
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-secondary);
+}
+
+/* --- CONTENITORE PRINCIPALE & RESPONSIVE GRID --- */
+.app-container {
+    width: 100%;
+    max-width: 480px; /* Default mobile scale */
+}
+
+@media (min-width: 900px) {
+    body {
+        padding: 40px 20px;
+    }
+    .app-container {
+        max-width: 1200px;
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        gap: 32px;
+        align-items: start;
+    }
+    
+    .stop-header {
+        grid-column: 1 / 2;
+        position: sticky;
+        top: 40px;
+        z-index: 100;
+    }
+    
+    .roadmap-container {
+        grid-column: 2 / 3;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 24px;
+        padding-left: 0 !important;
+    }
+    
+    /* Rende certe card a larghezza intera nel grid desktop */
+    .stop-journey, .stop-team, .stop-photos {
+        grid-column: span 2;
+    }
+    
+    .roadmap-container::before {
+        display: none !important; /* Rimuove linea della timeline su desktop */
+    }
+    
+    .stop-marker {
+        display: none !important; /* Rimuove cerchi della timeline su desktop */
+    }
+    
+    .roadmap-stop {
+        margin-bottom: 0 !important;
+        opacity: 1 !important;
+        transform: none !important;
+    }
+}
+
+/* --- TIMELINE ROADMAP (MOBILE ONLY) --- */
 .roadmap-container {
     position: relative;
     padding-left: 30px; 
@@ -23,16 +120,16 @@
     bottom: 0;
     left: 10px;
     width: 4px;
-    background: linear-gradient(to bottom, var(--accent-blue), var(--accent-road), var(--accent-green));
+    background: linear-gradient(to bottom, var(--accent-primary), var(--accent-secondary), var(--accent-tertiary));
     border-radius: 2px;
 }
 
 .roadmap-stop {
     position: relative;
-    margin-bottom: 40px;
+    margin-bottom: 35px;
     opacity: 0; 
-    transform: translateY(30px);
-    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+    transform: translateY(20px);
+    transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .roadmap-stop.visible {
@@ -47,195 +144,258 @@
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background: var(--bg-dark);
-    border: 4px solid var(--accent-blue);
-    box-shadow: 0 0 10px var(--accent-blue);
+    background: var(--bg-base);
+    border: 4px solid var(--accent-primary);
+    box-shadow: 0 0 12px var(--accent-primary);
     z-index: 2;
+    transition: all 0.3s;
 }
 
 .stop-marker.marker-green {
     border-color: var(--accent-green);
-    box-shadow: 0 0 10px var(--accent-green);
+    box-shadow: 0 0 12px var(--accent-green);
 }
 
 .stop-marker.marker-pink {
-    border-color: var(--accent-road);
-    box-shadow: 0 0 10px var(--accent-road);
-}
-
-/* --- RESET & BASE --- */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-body {
-    background-color: var(--bg-dark);
-    color: var(--text-main);
-    line-height: 1.6;
-    display: flex;
-    justify-content: center;
-    padding: 20px;
-}
-
-.container {
-    width: 100%;
-    max-width: 450px; /* Ottimizzato per smartphone */
+    border-color: var(--accent-secondary);
+    box-shadow: 0 0 12px var(--accent-secondary);
 }
 
 /* --- HEADER --- */
 header {
     text-align: center;
-    padding: 40px 0;
+    padding: 20px 0 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 h1 {
-    font-size: 2.5rem;
-    font-weight: 900;
+    font-size: 2.6rem;
+    font-weight: 800;
     letter-spacing: -2px;
     text-transform: uppercase;
+    background: linear-gradient(135deg, var(--text-main) 30%, var(--accent-secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 5px;
 }
 
 #countdown {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     font-family: 'Courier New', monospace;
-    font-weight: bold;
-    font-size: 1.2rem;
+    font-weight: 800;
+    font-size: 1.15rem;
+    letter-spacing: 1px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    margin-top: 5px;
+    display: inline-block;
 }
 
 /* --- CARD STYLE (GLASSMORPHISM) --- */
 .card {
-    background: var(--glass-bg);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--bg-card);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border-card);
     border-radius: 24px;
     padding: 24px;
-    margin-bottom: 20px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    box-shadow: var(--shadow-main);
+    transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    border-color: var(--border-card-hover);
+    box-shadow: 0 20px 40px -10px rgba(0,0,0,0.7), 0 0 15px -5px rgba(236, 72, 153, 0.15);
 }
 
 h2 {
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     text-transform: uppercase;
-    letter-spacing: 2px;
+    letter-spacing: 2.5px;
     color: var(--text-dim);
-    margin-bottom: 15px;
+    margin-bottom: 18px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-/* --- BOTTONI NAVIGAZIONE --- */
+/* --- BOTTONI GENERALI --- */
+.btn {
+    padding: 14px 20px;
+    border: none;
+    border-radius: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: transform 0.1s, opacity 0.2s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    user-select: none;
+}
+
+.btn:active {
+    transform: scale(0.96);
+}
+
+.btn-white { 
+    background: #ffffff; 
+    color: hsl(270, 43%, 6%); 
+}
+.btn-white:hover {
+    box-shadow: 0 4px 15px rgba(255,255,255,0.25);
+}
+
+.btn-blue { 
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); 
+    color: #fff; 
+    border: 1px solid rgba(255,255,255,0.15); 
+}
+.btn-blue:hover {
+    box-shadow: var(--shadow-glow);
+}
+
+/* --- BARRA DEL VIAGGIO (HIGHWAY EFFECT) --- */
+.road-progress-bar-bg {
+    height: 16px;
+    background: #0f0717;
+    border-radius: 8px;
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    overflow: visible; /* Per far sporgere la macchinina */
+    margin: 10px 0;
+}
+
+.road-progress-bar {
+    height: 100%;
+    width: 0%; /* Regolato da JS */
+    background: #2b1f3c; /* Colore asfalto */
+    border-radius: 8px;
+    position: relative;
+    transition: width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.road-line-dotted {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    border-top: 2px dashed rgba(255, 255, 255, 0.35);
+    transform: translateY(-50%);
+}
+
+.car-icon {
+    position: absolute;
+    right: -12px;
+    top: 50%;
+    transform: translateY(-50%) scale(1.35);
+    filter: drop-shadow(0 0 6px var(--accent-secondary));
+    animation: carWiggle 0.4s ease-in-out infinite alternate;
+    cursor: grab;
+}
+
+@keyframes carWiggle {
+    0% { transform: translateY(-50%) rotate(0deg) scale(1.35); }
+    100% { transform: translateY(-53%) rotate(3deg) scale(1.35); }
+}
+
 .nav-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
 }
 
-.btn {
-    padding: 15px;
-    border: none;
-    border-radius: 16px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: transform 0.1s, opacity 0.2s;
+/* --- STATO SQUADRA (BARRE DI STATISTICA) --- */
+.stat-container { 
+    margin-bottom: 16px; 
 }
-
-.btn:active {
-    transform: scale(0.95);
+.stat-header { 
+    display: flex; 
+    justify-content: space-between; 
+    font-size: 0.85rem; 
+    margin-bottom: 6px; 
+    color: var(--text-main); 
+    font-weight: 600; 
 }
-
-.btn-white { background: #ffffff; color: var(--bg-dark); }
-.btn-blue { background: linear-gradient(135deg, var(--accent-blue), var(--accent-road)); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
-
-/* --- INPUTS & CALCOLATORE --- */
-input[type="number"] {
-    width: 100%;
-    background: transparent;
-    border: none;
-    border-bottom: 2px solid #334155;
+.stat-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.stat-btn {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255, 255, 255, 0.05);
     color: white;
-    font-size: 1.5rem;
-    padding: 10px 0;
-    margin-bottom: 15px;
-    outline: none;
-}
-
-input[type="number"]:focus {
-    border-bottom-color: var(--accent-blue);
-}
-
-.cars-details {
-    font-size: 0.85rem;
-    color: var(--text-dim);
-    margin-bottom: 15px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.cars-details div {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 6px;
-}
-
-.result-box {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 10px;
-}
-
-#result {
-    font-size: 2rem;
-    color: var(--accent-green);
-    font-weight: bold;
-}
-
-/* --- CHECKLIST --- */
-.checklist-item {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 10px 0;
-}
-
-input[type="checkbox"] {
-    width: 22px;
-    height: 22px;
-    border-radius: 6px;
-    accent-color: var(--accent-blue);
-}
-
-.strikethrough {
-    text-decoration: line-through;
-    color: var(--text-dim);
-}
-
-/* --- ANIMAZIONE ANTIGRAVITY --- */
-@keyframes float {
-    0% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
-    100% { transform: translateY(0px); }
-}
-
-.floating {
-    animation: float 4s ease-in-out infinite;
-}
-
-/* --- METEO WIDGET --- */
-.weather-widget {
-    display: flex;
     justify-content: center;
-    align-items: center;
+    font-size: 1rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+}
+.stat-btn:hover {
+    background: rgba(255,255,255,0.18);
+    transform: scale(1.05);
+}
+.stat-btn:active {
+    transform: scale(0.9);
+}
+.stat-bar-bg { 
+    flex-grow: 1;
+    height: 12px; 
+    background: rgba(0, 0, 0, 0.3); 
+    border-radius: 6px; 
+    overflow: hidden; 
+    border: 1px solid rgba(255,255,255,0.03);
+}
+.stat-bar { 
+    height: 100%; 
+    border-radius: 6px;
+    box-shadow: 0 0 8px rgba(255,255,255,0.1);
+    transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); 
+}
+
+/* --- EVENTI RAPIDI STATS --- */
+.events-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
     gap: 8px;
-    margin-top: 10px;
-    font-size: 1.2rem;
-    color: var(--accent-blue);
-    background: rgba(0, 0, 0, 0.2);
-    padding: 8px 16px;
-    border-radius: 20px;
-    display: inline-flex;
+}
+.btn-event {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: var(--text-dim);
+    padding: 10px 8px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    border-radius: 12px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+.btn-event:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--accent-secondary);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(236, 72, 153, 0.15);
+}
+.btn-event:active {
+    transform: translateY(0);
 }
 
 /* --- CASSA AUTOMATICA --- */
@@ -246,424 +406,478 @@ input[type="checkbox"] {
     margin-bottom: 12px;
 }
 .input-group label {
-    font-size: 0.9rem;
-    color: var(--text-main);
+    font-size: 0.85rem;
+    color: var(--text-dim);
 }
-.input-group input[type="number"] {
-    width: 80px;
+input[type="number"] {
+    width: 90px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    color: white;
     font-size: 1.1rem;
-    margin-bottom: 0;
+    padding: 6px 10px;
+    outline: none;
     text-align: right;
-    padding: 5px;
+    font-family: monospace;
+    transition: border-color 0.2s;
 }
-.mt-3 { margin-top: 15px; }
-.pt-3 { padding-top: 15px; }
-.border-t { border-top: 1px solid rgba(255, 255, 255, 0.1); }
-
-/* --- CHECKLIST INPUT --- */
-.checklist-input-group {
+input[type="number"]:focus {
+    border-color: var(--accent-primary);
+    background: rgba(0,0,0,0.35);
+}
+.result-box {
     display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
+    justify-content: space-between;
     align-items: center;
 }
+#result {
+    font-size: 1.8rem;
+    color: var(--accent-green);
+    font-weight: 800;
+    text-shadow: 0 0 10px rgba(34, 197, 94, 0.2);
+}
 
+/* --- LA SQUADRA RPG CARDS --- */
+.team-grid {
+    display: flex;
+    overflow-x: auto;
+    gap: 15px;
+    padding: 5px 0 12px;
+    scrollbar-width: thin;
+}
+.team-grid::-webkit-scrollbar { 
+    height: 4px; 
+}
+.team-grid::-webkit-scrollbar-thumb { 
+    background: var(--accent-secondary); 
+    border-radius: 2px; 
+}
+
+.team-card {
+    min-width: 165px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 16px;
+    padding: 16px;
+    text-align: center;
+    transition: transform 0.2s, border-color 0.2s;
+}
+.team-card:hover {
+    transform: scale(1.03);
+    border-color: rgba(249, 115, 22, 0.3);
+}
+.team-icon {
+    font-size: 2.2rem;
+    margin-bottom: 6px;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+}
+.team-role {
+    color: var(--accent-primary);
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+.team-name {
+    font-weight: 800;
+    font-size: 1.1rem;
+    margin-bottom: 8px;
+}
+.team-stats {
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding-top: 6px;
+}
+
+/* --- BACHECA DELLE PERLE (QUOTES) --- */
+.quote-input-group {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+.quotes-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 250px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+.quote-card {
+    background: rgba(0, 0, 0, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-left: 3px solid var(--accent-secondary);
+    border-radius: 12px;
+    padding: 12px 14px;
+    position: relative;
+    animation: quoteFadeIn 0.3s ease-out;
+}
+@keyframes quoteFadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.quote-text {
+    font-style: italic;
+    font-size: 0.85rem;
+    color: var(--text-main);
+    line-height: 1.45;
+    margin-bottom: 6px;
+}
+.quote-author {
+    font-size: 0.72rem;
+    color: var(--accent-primary);
+    font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.quote-delete-btn {
+    background: none;
+    border: none;
+    color: rgba(239, 68, 68, 0.6);
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 0 4px;
+    transition: color 0.2s;
+}
+.quote-delete-btn:hover {
+    color: rgb(239, 68, 68);
+}
+
+/* --- CHECKLIST --- */
+.checklist-input-group {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 15px;
+}
 .checklist-input {
     flex: 1;
     padding: 12px 16px;
-    font-size: 1rem;
+    font-size: 0.9rem;
     color: var(--text-main);
-    background: rgba(255, 255, 255, 0.08);
-    border: 2px solid rgba(255, 255, 255, 0.15);
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 12px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    font-family: inherit;
-}
-
-.checklist-input:focus {
     outline: none;
-    background: rgba(255, 255, 255, 0.12);
-    border-color: var(--accent-blue);
-    box-shadow: 0 0 16px rgba(59, 130, 246, 0.3);
-    transform: translateY(-2px);
+    transition: border-color 0.2s;
 }
-
-.checklist-input::placeholder {
-    color: rgba(255, 255, 255, 0.5);
+.checklist-input:focus {
+    border-color: var(--accent-secondary);
 }
-
 .btn-add-item {
-    padding: 12px 20px !important;
-    min-width: 50px;
-    height: 50px;
+    width: 48px;
+    height: 48px;
     border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: bold;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.3rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s;
 }
-
 .btn-add-item:hover {
-    transform: scale(1.08) translateY(-2px);
-    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+    transform: scale(1.05);
+    box-shadow: var(--shadow-glow);
 }
-
-.btn-add-item:active {
-    transform: scale(0.96);
+.checklist-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 250px;
+    overflow-y: auto;
+    padding-right: 5px;
 }
-
-/* --- CHECKLIST (PRETTIFIED) --- */
 .checklist-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 12px 16px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 10px 14px;
+    background: rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.03);
     border-radius: 12px;
-    margin-bottom: 8px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.checklist-item:hover {
-    background: rgba(255, 255, 255, 0.08);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-}
-
-.checklist-label {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    cursor: pointer;
-    flex: 1;
-}
-
-.checklist-checkbox {
-    appearance: none;
-    -webkit-appearance: none;
-    width: 24px;
-    height: 24px;
-    border-radius: 8px;
-    border: 2px solid var(--accent-blue);
-    background: rgba(255, 255, 255, 0.05);
-    cursor: pointer;
-    position: relative;
     transition: all 0.2s;
 }
-
-.checklist-checkbox:checked {
-    background: var(--accent-blue);
+.checklist-item:hover {
+    background: rgba(0, 0, 0, 0.25);
+    border-color: rgba(255,255,255,0.06);
 }
-
-.checklist-checkbox:checked::after {
-    content: "✓";
-    position: absolute;
-    color: white;
-    font-size: 16px;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-weight: bold;
+.checklist-item label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    flex: 1;
+    font-size: 0.88rem;
 }
-
+.checklist-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent-secondary);
+    cursor: pointer;
+}
 .strikethrough {
     text-decoration: line-through;
-    color: var(--text-dim);
-    transition: color 0.3s;
+    color: rgba(255, 255, 255, 0.4);
 }
 
-.text-normal {
-    color: var(--text-main);
-    transition: color 0.3s;
-}
-
-/* --- CHECKLIST FILTERS & DELETE --- */
-.filter-buttons {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 15px;
-    background: rgba(0, 0, 0, 0.2);
-    padding: 6px;
-    border-radius: 12px;
-}
-.btn-filter {
-    flex: 1;
-    background: transparent;
-    border: none;
-    color: var(--text-dim);
-    padding: 8px 12px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.85rem;
-    font-weight: bold;
-    transition: all 0.3s ease;
-}
-.btn-filter:hover {
-    color: var(--text-main);
-}
-.btn-filter.active {
-    background: var(--accent-blue);
-    color: white;
-    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
-}
-
-.btn-delete {
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.2);
-    color: #ef4444;
-    cursor: pointer;
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    font-size: 1.2rem;
-    line-height: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-}
-.btn-delete:hover {
-    background: #ef4444;
-    color: white;
-    transform: scale(1.05);
-}
-
-/* --- RPG & BINGO --- */
-.team-grid {
-    display: flex;
-    overflow-x: auto;
-    gap: 15px;
-    padding-bottom: 10px;
-    scrollbar-width: thin;
-}
-.team-grid::-webkit-scrollbar { height: 6px; }
-.team-grid::-webkit-scrollbar-thumb { background: var(--accent-blue); border-radius: 4px; }
-
-.team-card {
-    min-width: 150px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 12px;
-    padding: 15px;
-    text-align: center;
-}
-.team-icon {
-    font-size: 2rem;
-    margin-bottom: 5px;
-}
-.team-role {
-    color: var(--accent-blue);
-    font-size: 0.9rem;
-    margin-bottom: 2px;
-}
-.team-name {
-    font-weight: bold;
-    font-size: 1.1rem;
-    margin-bottom: 8px;
-}
-
+/* --- BINGO DEL VIAGGIO --- */
 .bingo-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
 }
 .bingo-cell {
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 8px;
-    padding: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    padding: 8px;
     text-align: center;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 60px;
+    min-height: 64px;
+    line-height: 1.3;
+}
+.bingo-cell:hover {
+    border-color: var(--accent-primary);
+    transform: scale(1.03);
+    background: rgba(0,0,0,0.3);
 }
 .bingo-cell.checked {
-    background: var(--accent-green);
+    background: linear-gradient(135deg, var(--accent-secondary), var(--accent-tertiary));
     color: white;
-    font-weight: bold;
-    transform: scale(0.95);
+    font-weight: 800;
     border-color: transparent;
+    box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
+    transform: scale(0.96);
 }
 
-/* --- SOS --- */
-.btn-sos-call {
-    background: #ef4444;
-    color: white;
-    padding: 5px 10px;
-    border-radius: 6px;
-    text-decoration: none;
-    font-weight: bold;
-    font-size: 0.85rem;
+/* --- AREA METEO --- */
+.weather-widget {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    background: rgba(0, 0, 0, 0.25);
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    font-size: 0.95rem;
 }
-.btn-sos-maps {
-    background: transparent;
-    color: var(--text-main);
-    border: 1px solid rgba(255,255,255,0.2);
-    padding: 8px 15px;
-    border-radius: 8px;
-    text-decoration: none;
-    font-weight: bold;
-    font-size: 0.9rem;
-    text-align: center;
-    transition: all 0.2s;
+#weather-icon {
+    font-size: 1.1rem;
+    filter: drop-shadow(0 0 4px rgba(255, 255, 0, 0.5));
 }
-.btn-sos-maps:hover { background: rgba(255,255,255,0.1); }
-.sos-divider {
-    border-color: rgba(239, 68, 68, 0.2);
-    margin: 15px 0;
+#weather-temp {
+    font-weight: 800;
+    color: var(--accent-primary);
 }
 
-/* --- CLOUD FOTO CONDIVISO --- */
+/* --- GALLERIA FOTO CLOUD --- */
 .photo-gallery-cloud {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
+    margin-top: 10px;
+    max-height: 380px;
+    overflow-y: auto;
+    padding-right: 5px;
 }
-
+@media (min-width: 480px) {
+    .photo-gallery-cloud {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
 .cloud-photo-card {
-    border-radius: 14px;
+    border-radius: 16px;
     overflow: hidden;
     position: relative;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
     aspect-ratio: 1;
     cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-    animation: photoFadeIn 0.5s ease-out;
+    transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+    animation: photoFadeIn 0.4s ease-out;
 }
-
 @keyframes photoFadeIn {
-    from { opacity: 0; transform: scale(0.9); }
-    to   { opacity: 1; transform: scale(1); }
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
 }
-
-.cloud-photo-card:active {
-    transform: scale(0.97);
+.cloud-photo-card:hover {
+    transform: scale(1.02);
+    border-color: var(--accent-secondary);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
 }
-
 .cloud-photo-card img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
+    transition: transform 0.3s;
 }
-
+.cloud-photo-card:hover img {
+    transform: scale(1.05);
+}
 .cloud-photo-tag {
     position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
-    background: linear-gradient(transparent, rgba(0,0,0,0.75));
-    padding: 18px 8px 7px;
-    font-size: 0.7rem;
-    color: rgba(255,255,255,0.9);
-    font-weight: bold;
+    background: linear-gradient(transparent, rgba(0,0,0,0.85));
+    padding: 18px 8px 6px;
+    font-size: 0.65rem;
+    color: white;
+    font-weight: 700;
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
 }
-
 .cloud-photo-delete {
     position: absolute;
     top: 6px;
     right: 6px;
-    background: rgba(0,0,0,0.55);
+    background: rgba(0,0,0,0.6);
     color: white;
     border: none;
     border-radius: 50%;
-    width: 26px;
-    height: 26px;
-    font-size: 13px;
+    width: 24px;
+    height: 24px;
+    font-size: 11px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     backdrop-filter: blur(4px);
-    transition: background 0.2s;
+    transition: background 0.2s, transform 0.2s;
     z-index: 2;
 }
-.cloud-photo-delete:hover { background: rgba(239,68,68,0.8); }
+.cloud-photo-delete:hover {
+    background: rgb(239, 68, 68);
+    transform: scale(1.1);
+}
 
-/* Lightbox fix */
-#photoLightbox {
+/* --- LIGHTBOX (MODALE ZOOM FOTO) --- */
+.lightbox {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(10, 5, 15, 0.95);
+    z-index: 9999;
     display: none;
-}
-#photoLightbox.open {
-    display: flex !important;
-}
-
-/* --- STATO SQUADRA --- */
-.stat-container { 
-    margin-bottom: 15px; 
-}
-.stat-header { 
-    display: flex; 
-    justify-content: space-between; 
-    font-size: 0.85rem; 
-    margin-bottom: 8px; 
-    color: var(--text-main); 
-    font-weight: bold; 
-}
-.stat-controls {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-.stat-btn {
-    background: rgba(255,255,255,0.15);
-    border: none;
-    color: white;
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
+    flex-direction: column;
     justify-content: center;
-    font-size: 1.1rem;
-    font-weight: bold;
+    align-items: center;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 20px;
+    animation: fadeIn 0.25s ease-out;
+}
+.lightbox-close {
+    position: absolute;
+    top: 20px;
+    right: 25px;
+    font-size: 3rem;
+    color: white;
     cursor: pointer;
-    backdrop-filter: blur(5px);
-    transition: all 0.2s;
+    transition: transform 0.2s, color 0.2s;
     user-select: none;
+    z-index: 10000;
 }
-.stat-btn:active {
-    transform: scale(0.9);
-    background: rgba(255,255,255,0.3);
+.lightbox-close:hover {
+    transform: rotate(90deg) scale(1.05);
+    color: var(--accent-secondary);
 }
-.stat-bar-bg { 
-    flex-grow: 1;
-    height: 14px; 
-    background: rgba(255,255,255,0.1); 
-    border-radius: 7px; 
-    overflow: hidden; 
-    border: 1px solid rgba(255,255,255,0.05);
+.lightbox-content {
+    max-width: 100%;
+    max-height: 75vh;
+    object-fit: contain;
+    border-radius: 16px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.8);
+    border: 1px solid rgba(255,255,255,0.08);
+    animation: zoomIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
-.stat-bar { 
-    height: 100%; 
-    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+@keyframes zoomIn {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+.lightbox-caption {
+    margin-top: 15px;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    font-weight: 600;
+    text-align: center;
+}
+.lightbox-actions {
+    margin-top: 15px;
+}
+.btn-delete {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #f87171;
+    padding: 8px 16px !important;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: bold;
+    transition: all 0.2s;
+}
+.btn-delete:hover {
+    background: #ef4444;
+    color: white;
 }
 
-/* --- AGGIUNGI OGGETTO --- */
-.add-item-box {
-    display: flex;
-    gap: 10px;
-}
-.add-item-box input {
-    flex: 1;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+/* --- SOS / EMERGENCY CARD --- */
+.btn-sos-call {
+    background: linear-gradient(135deg, #ef4444, #b91c1c);
     color: white;
-    padding: 10px;
-    border-radius: 12px;
-    outline: none;
+    padding: 6px 12px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.8rem;
+    box-shadow: 0 4px 10px rgba(239, 68, 68, 0.25);
+    transition: transform 0.2s;
 }
-.add-item-box input:focus {
-    border-color: var(--accent-blue);
+.btn-sos-call:hover {
+    transform: translateY(-1px);
+}
+.btn-sos-maps {
+    background: transparent;
+    color: var(--text-main);
+    border: 1px solid rgba(255,255,255,0.15);
+    padding: 10px 15px;
+    border-radius: 12px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-align: center;
+    transition: all 0.2s;
+}
+.btn-sos-maps:hover { 
+    background: rgba(255,255,255,0.06); 
+    border-color: var(--accent-primary);
+}
+.sos-divider {
+    border-color: rgba(239, 68, 68, 0.15);
+    margin: 15px 0;
+}
+
+/* --- FLOAT ANIMATION FOR TITLES --- */
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+    100% { transform: translateY(0px); }
+}
+.floating {
+    animation: float 4s ease-in-out infinite;
 }
