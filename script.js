@@ -196,6 +196,12 @@ async function handleCloudUpdate(data) {
             localStorage.setItem('local_photos', JSON.stringify(sharedPhotos));
         }
         renderCloudPhotos();
+    } else if (id.startsWith('bingo/')) {
+        const bingoId = id.split('/')[1];
+        const isChecked = payload?.checked ? 1 : 0;
+        db.run("INSERT OR REPLACE INTO bingo (id, is_checked) VALUES (?, ?)", [bingoId, isChecked]);
+        await saveDBToIndexedDB();
+        renderBingo();
     } else if (id.startsWith('quote/')) {
         const quoteId = id.split('/')[1];
         if (payload === null) {
@@ -262,6 +268,10 @@ async function initSQLite() {
             // Tabella quotes
             db.run("CREATE TABLE IF NOT EXISTS quotes (id TEXT PRIMARY KEY, text TEXT, author TEXT, ts INTEGER)");
             console.log("✓ Tabella quotes creata");
+            
+            // Tabella bingo
+            db.run("CREATE TABLE IF NOT EXISTS bingo (id TEXT PRIMARY KEY, is_checked INTEGER)");
+            console.log("✓ Tabella bingo creata");
             
         } catch (tableErr) {
             console.error("SQLite: Errore creazione tabelle:", tableErr);
@@ -371,40 +381,13 @@ async function deleteDBFromIndexedDB() {
 }
 
 
-// 1. CONFIGURAZIONE (Supporto per data.json)
+// 1. CONFIGURAZIONE (caricata da data.json, fallback minimo)
 let TRIP_CONFIG = {
-    destination: {
-        name: "Platja d'Aro",
-        lat: 41.8056,
-        lon: 3.0586,
-        date: "2026-08-02T09:00:00"
-    },
-    group: {
-        size: 8,
-        items: []
-    },
-    emergency: {
-        address: "Carrer Esempio 123, Platja d'Aro, Spain",
-        numbers: [
-            {name: "Emergenza Europea", number: "112"},
-            {name: "Pronto Soccorso Locale", number: "+34 123 456 789"}
-        ]
-    },
-    team: [
-        {id: "pilota1", role: "Il Pilota", name: "Simone", icon: "🏎️", stats: ["+10 Riflessi", "-10 Pazienza nel traffico"]},
-        {id: "pilota2", role: "Il Pilota", name: "Petre", icon: "🏎️", stats: ["+10 Precisione di manovra", "-10 Tolleranza ai passeggeri che dormono"]},
-        {id: "dj", role: "La DJ", name: "Sara", icon: "🎧", stats: ["+10 Selezione musicale", "-10 Accetta critiche"]},
-        {id: "curve", role: "Soffro le curve", name: "Stella", icon: "🤢", stats: ["+10 Pretesa di sedersi davanti", "-10 Resistenza alle curve"]},
-        {id: "stories", role: "Il racconta storie", name: "Matteo", icon: "📖", stats: ["+15 Storie divertenti", "-10 Sonnolenza"]},
-        {id: "vigile", role: "Sempre vigile", name: "Alessio", icon: "👀", stats: ["+50 Resistenza al sonno", "-20 Silenzio"]},
-        {id: "navigatore", role: "La Navigatrice", name: "Noelia", icon: "🗺️", stats: ["+20 Capacità di lettura di Google Maps", "-10 Orientamento reale"]},
-        {id: "noemie", role: "La Social Media Manager", name: "Noemie", icon: "📸", stats: ["+20 Foto estetiche", "-15 Pazienza per i selfie sfocati"]}
-    ],
-    bingo: [
-        "Macchina gialla", "Tizio che dorme a bocca aperta", "Autogrill con nome strano",
-        "Sorpasso a destra", "Canzone imbarazzante alla radio", "Coda per incidente",
-        "Gabbiano gigante", "Sole che acceca", "Cartello incomprensibile"
-    ]
+    destination: { name: "Platja d'Aro", lat: 41.8056, lon: 3.0586, date: "2026-08-02T09:00:00" },
+    group: { size: 8, items: [] },
+    emergency: { address: "", numbers: [] },
+    team: [],
+    bingo: []
 };
 
 // 2. LOGICA COUNTDOWN
@@ -627,14 +610,33 @@ const renderTeam = () => {
     container.innerHTML = html;
 };
 
-// 9. RENDER BINGO
+// 9. RENDER BINGO (con sync Supabase)
+const seedBingo = () => {
+    if (!TRIP_CONFIG.bingo) return;
+    const res = db.exec("SELECT COUNT(*) FROM bingo");
+    const count = res.length > 0 ? res[0].values[0][0] : 0;
+    if (count === 0 && TRIP_CONFIG.bingo.length > 0) {
+        TRIP_CONFIG.bingo.forEach((item, idx) => {
+            db.run("INSERT OR IGNORE INTO bingo (id, is_checked) VALUES (?, 0)", [`bingo_${idx}`]);
+        });
+        saveDBToIndexedDB();
+    }
+};
+
 const renderBingo = () => {
     const container = document.getElementById('bingoContainer');
     if (!container || !TRIP_CONFIG.bingo) return;
-    
+
+    const res = db.exec("SELECT id, is_checked FROM bingo ORDER BY id");
+    const checkMap = {};
+    if (res.length > 0) {
+        res[0].values.forEach(row => { checkMap[row[0]] = row[1] === 1; });
+    }
+
     let html = '';
     TRIP_CONFIG.bingo.forEach((item, index) => {
-        const isChecked = localStorage.getItem(`bingo_item_${index}`) === 'true';
+        const key = `bingo_${index}`;
+        const isChecked = checkMap[key] || false;
         html += `
             <div class="bingo-cell ${isChecked ? 'checked' : ''}" 
                  data-idx="${index}" 
@@ -646,12 +648,19 @@ const renderBingo = () => {
     container.innerHTML = html;
 };
 
-window.toggleBingo = (el) => {
+window.toggleBingo = async (el) => {
     const idx = el.getAttribute('data-idx');
     const isChecked = !el.classList.contains('checked');
+    const key = `bingo_${idx}`;
     
     el.classList.toggle('checked', isChecked);
-    localStorage.setItem(`bingo_item_${idx}`, isChecked);
+
+    // 1. SQLite
+    db.run("INSERT OR REPLACE INTO bingo (id, is_checked) VALUES (?, ?)", [key, isChecked ? 1 : 0]);
+    await saveDBToIndexedDB();
+
+    // 2. Supabase
+    pushToCloud(`bingo/${key}`, { checked: isChecked });
 
     if (isChecked && typeof confetti === 'function') {
         confetti({
@@ -812,6 +821,7 @@ const initApp = async () => {
         
         console.log("📍 initApp: Rendering UI...");
         renderTeam();
+        seedBingo();
         renderBingo();
         renderEmergency();
         renderChecklist();
@@ -1043,7 +1053,9 @@ const renderCloudPhotos = () => {
     });
 };
 
-// --- Lightbox ---
+// --- Lightbox con Swipe-to-close ---
+let lightboxTouchStartX = 0;
+
 window.openLightbox = async (id) => {
     const photo = sharedPhotos[id];
     if (!photo) return;
@@ -1064,12 +1076,23 @@ window.openLightbox = async (id) => {
         const date = photo.ts ? new Date(photo.ts).toLocaleString('it-IT') : '';
         cap.innerText = `📸 Da: ${photo.by || 'Anonimo'}  ·  ${date}`;
     }
-    if (lb) lb.classList.add('open');
+    if (lb) {
+        lb.classList.add('open');
+        lb.ontouchstart = (e) => { lightboxTouchStartX = e.touches[0].clientX; };
+        lb.ontouchend = (e) => {
+            const dx = e.changedTouches[0].clientX - lightboxTouchStartX;
+            if (Math.abs(dx) > 80) closeLightbox();
+        };
+    }
 };
 
 window.closeLightbox = () => {
     const lb = document.getElementById('photoLightbox');
-    if (lb) lb.classList.remove('open');
+    if (lb) {
+        lb.classList.remove('open');
+        lb.ontouchstart = null;
+        lb.ontouchend = null;
+    }
     lightboxCurrentId = null;
 };
 
@@ -1125,7 +1148,9 @@ window.updateStat = async (type, change) => {
     pushToCloud(`stat/${type}`, val);
 };
 
-// --- LOGICA BACHECA DELLE PERLE ---
+// --- LOGICA BACHECA DELLE PERLE (con modifica) ---
+let editingQuoteId = null;
+
 window.addQuote = async () => {
     const textInput = document.getElementById('quoteInput');
     const authorInput = document.getElementById('quoteAuthor');
@@ -1136,34 +1161,54 @@ window.addQuote = async () => {
     if (!text) { alert("Inserisci una perla!"); return; }
     if (!author) { alert("Chi l'ha detta?"); return; }
 
-    const quoteId = `q_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
-    const ts = Date.now();
+    if (editingQuoteId) {
+        // Modifica citazione esistente
+        const ts = Date.now();
+        db.run("UPDATE quotes SET text = ?, author = ?, ts = ? WHERE id = ?", [text, author, ts, editingQuoteId]);
+        await saveDBToIndexedDB();
+        pushToCloud(`quote/${editingQuoteId}`, { text, author, ts });
+        editingQuoteId = null;
+    } else {
+        // Nuova citazione
+        const quoteId = `q_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+        const ts = Date.now();
+        db.run("INSERT OR REPLACE INTO quotes (id, text, author, ts) VALUES (?, ?, ?, ?)", [quoteId, text, author, ts]);
+        await saveDBToIndexedDB();
+        pushToCloud(`quote/${quoteId}`, { text, author, ts });
 
-    // 1. Locale SQLite
-    db.run("INSERT OR REPLACE INTO quotes (id, text, author, ts) VALUES (?, ?, ?, ?)", [quoteId, text, author, ts]);
-    await saveDBToIndexedDB();
-
-    // 2. Supabase
-    pushToCloud(`quote/${quoteId}`, { text, author, ts });
+        if (typeof confetti === 'function') {
+            confetti({ particleCount: 30, spread: 40, origin: { y: 0.8 } });
+        }
+    }
 
     textInput.value = '';
     authorInput.value = '';
+    document.getElementById('quoteSubmitBtn').innerText = '✓';
     renderQuotes();
-    
-    // Coriandoli!
-    if (typeof confetti === 'function') {
-        confetti({ particleCount: 30, spread: 40, origin: { y: 0.8 } });
-    }
+};
+
+window.editQuote = (quoteId, text, author) => {
+    document.getElementById('quoteInput').value = text;
+    document.getElementById('quoteAuthor').value = author;
+    editingQuoteId = quoteId;
+    document.getElementById('quoteSubmitBtn').innerText = '✎';
+    document.getElementById('quoteCancelBtn').style.display = 'flex';
+    document.getElementById('quoteInput').focus();
+};
+
+window.cancelQuoteEdit = () => {
+    editingQuoteId = null;
+    document.getElementById('quoteInput').value = '';
+    document.getElementById('quoteAuthor').value = '';
+    document.getElementById('quoteSubmitBtn').innerText = '✓';
+    document.getElementById('quoteCancelBtn').style.display = 'none';
 };
 
 window.deleteQuote = async (quoteId) => {
-    // 1. Locale SQLite
+    if (editingQuoteId === quoteId) cancelQuoteEdit();
     db.run("DELETE FROM quotes WHERE id = ?", [quoteId]);
     await saveDBToIndexedDB();
-
-    // 2. Supabase
     pushToCloud(`quote/${quoteId}`, null);
-
     renderQuotes();
 };
 
@@ -1191,13 +1236,21 @@ const renderQuotes = () => {
 
             const div = document.createElement('div');
             div.className = 'quote-card';
+            div.dataset.id = id;
+            div.dataset.text = text;
+            div.dataset.author = author;
             div.innerHTML = `
-                <p class="quote-text">« ${text} »</p>
+                <p class="quote-text">« ${text.replace(/</g, '&lt;')} »</p>
                 <div class="quote-author">
-                    <span>— ${author} (${dateStr})</span>
-                    <button class="quote-delete-btn" onclick="deleteQuote('${id}')" title="Elimina">✕</button>
+                    <span>— ${author.replace(/</g, '&lt;')} (${dateStr})</span>
+                    <div style="display:flex;gap:6px;">
+                        <button class="quote-delete-btn quote-edit-btn" title="Modifica" style="color:var(--accent-blue);">✎</button>
+                        <button class="quote-delete-btn quote-del-btn" title="Elimina">✕</button>
+                    </div>
                 </div>
             `;
+            div.querySelector('.quote-edit-btn').onclick = () => editQuote(div.dataset.id, div.dataset.text, div.dataset.author);
+            div.querySelector('.quote-del-btn').onclick = () => deleteQuote(div.dataset.id);
             container.appendChild(div);
         });
     } catch (e) {

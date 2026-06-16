@@ -249,9 +249,11 @@
                         <input type="text" id="quoteInput" placeholder="Aggiungi una perla..." class="checklist-input">
                         <input type="text" id="quoteAuthor" placeholder="Chi?" class="checklist-input"
                             style="max-width: 80px;">
-                        <button class="btn btn-blue btn-add-item" onclick="addQuote()" title="Aggiungi">
+                        <button class="btn btn-blue btn-add-item" onclick="addQuote()" title="Aggiungi" id="quoteSubmitBtn">
                             <span>✓</span>
                         </button>
+                        <button class="btn btn-add-item" onclick="cancelQuoteEdit()" title="Annulla" id="quoteCancelBtn"
+                            style="display:none;background:rgba(255,255,255,0.1);color:white;">✕</button>
                     </div>
 
                     <div id="quotesContainer" class="quotes-container mt-2">

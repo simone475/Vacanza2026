@@ -445,6 +445,10 @@ input[type="number"]:focus {
     gap: 15px;
     padding: 5px 0 12px;
     scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    mask-image: linear-gradient(to right, black calc(100% - 40px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 40px), transparent 100%);
 }
 .team-grid::-webkit-scrollbar { 
     height: 4px; 
@@ -452,6 +456,9 @@ input[type="number"]:focus {
 .team-grid::-webkit-scrollbar-thumb { 
     background: var(--accent-secondary); 
     border-radius: 2px; 
+}
+.team-card {
+    scroll-snap-align: start;
 }
 
 .team-card {
