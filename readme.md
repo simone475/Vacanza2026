@@ -1,1 +1,1 @@
-ciao
+Aggiornamento 16/06/26
