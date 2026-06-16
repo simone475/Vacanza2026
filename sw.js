@@ -43,6 +43,12 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // Non intercettare chiamate API (meteo, supabase, etc.)
+  const url = new URL(event.request.url);
+  if (url.hostname !== self.location.hostname) {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then(response => {
       if (response) {
@@ -50,12 +56,10 @@ self.addEventListener('fetch', event => {
       }
       
       return fetch(event.request).then(response => {
-        // Non cachare risposte non-ok
         if (!response || response.status !== 200 || response.type === 'error') {
           return response;
         }
         
-        // Clona la response
         const responseToCache = response.clone();
         caches.open(CACHE_NAME).then(cache => {
           cache.put(event.request, responseToCache);
@@ -63,8 +67,11 @@ self.addEventListener('fetch', event => {
         
         return response;
       }).catch(() => {
-        // Se offline e no cache, ritorna offline page o default
-        return caches.match('/index.html');
+        // Solo per navigazioni, ritorna index.html offline
+        if (event.request.mode === 'navigate') {
+          return caches.match('/index.html');
+        }
+        return new Response('Offline', { status: 503 });
       });
     })
   );

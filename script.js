@@ -140,8 +140,12 @@ async function handleCloudUpdate(data) {
         const bmw = payload?.bmw ?? 0;
         const punto = payload?.punto ?? 0;
         const tolls = payload?.tolls ?? 0;
+        const people = payload?.people ?? 8;
         db.run("UPDATE cassa SET bmw = ?, punto = ?, tolls = ? WHERE id = 1", [bmw, punto, tolls]);
         await saveDBToIndexedDB();
+        const peopleEl = document.getElementById('peopleCount');
+        if (peopleEl && document.activeElement?.id !== 'peopleCount') peopleEl.value = people;
+        localStorage.setItem('cassa_people', people);
         aggiornaRisultatoCassa(bmw, punto, tolls);
     } else if (id.startsWith('stat/')) {
         const type = id.split('/')[1];
@@ -437,29 +441,35 @@ window.salvaCassaCloud = async () => {
     const bmw = parseFloat(document.getElementById('costBmw')?.value) || 0;
     const punto = parseFloat(document.getElementById('costPunto')?.value) || 0;
     const tolls = parseFloat(document.getElementById('costTolls')?.value) || 0;
+    const people = parseInt(document.getElementById('peopleCount')?.value) || 8;
+
+    localStorage.setItem('cassa_people', people);
 
     // 1. Locale
     db.run("UPDATE cassa SET bmw = ?, punto = ?, tolls = ? WHERE id = 1", [bmw, punto, tolls]);
     await saveDBToIndexedDB();
     
     // 2. Supabase
-    pushToCloud('cassa', { bmw, punto, tolls });
+    pushToCloud('cassa', { bmw, punto, tolls, people });
     
     aggiornaRisultatoCassa(bmw, punto, tolls);
 };
 
 const aggiornaRisultatoCassa = (bmw, punto, tolls) => {
     const resultEl = document.getElementById('result');
+    const peopleLabel = document.getElementById('peopleLabel');
     if (!resultEl) return;
-    const totale = bmw + punto + tolls; // Somma delle spese
-    const quota = totale / 8; // Divisione per 8 persone (hardcoded)
+    const people = parseInt(document.getElementById('peopleCount')?.value) || 8;
+    const totale = bmw + punto + tolls;
+    const quota = totale / people;
     resultEl.innerText = quota.toFixed(2);
+    if (peopleLabel) peopleLabel.innerText = people;
 
-    // Aggiorna i campi solo se non sono quelli attivi (per non interrompere chi sta scrivendo)
     const active = document.activeElement?.id;
     if (active !== 'costBmw')   { const el = document.getElementById('costBmw');   if (el) el.value = bmw || ""; }
     if (active !== 'costPunto') { const el = document.getElementById('costPunto'); if (el) el.value = punto || ""; }
     if (active !== 'costTolls') { const el = document.getElementById('costTolls'); if (el) el.value = tolls || ""; }
+    if (active !== 'peopleCount') { const el = document.getElementById('peopleCount'); if (el) el.value = people || 8; }
 };
 
 // --- SISTEMA CHECKLIST CLOUD DEFINITIVO ---
@@ -779,6 +789,9 @@ const initApp = async () => {
             const cassaRes = db.exec("SELECT bmw, punto, tolls FROM cassa WHERE id = 1");
             if (cassaRes.length > 0) {
                 const row = cassaRes[0].values[0];
+                const savedPeople = parseInt(localStorage.getItem('cassa_people')) || 8;
+                const peopleEl = document.getElementById('peopleCount');
+                if (peopleEl) peopleEl.value = savedPeople;
                 aggiornaRisultatoCassa(row[0] || 0, row[1] || 0, row[2] || 0);
             }
         } catch (e) { console.warn("Dati cassa non trovati in DB", e); }
@@ -795,6 +808,7 @@ const initApp = async () => {
         setInterval(updateCountdown, 60000); 
         updateCountdown();
         fetchWeather();
+        setInterval(fetchWeather, 1800000); // Refresh meteo ogni 30 min
         
         console.log("📍 initApp: Rendering UI...");
         renderTeam();
@@ -806,10 +820,19 @@ const initApp = async () => {
         renderCloudPhotos();
         renderStats();
         renderQuotes();
+        renderItinerary();
         
         initObserver();
+
+        // Nascondi splash screen
+        const splash = document.getElementById('loading-splash');
+        if (splash) splash.classList.add('hidden');
+
         console.log("✅ initApp: COMPLETE");
     } catch (err) {
+        // Nascondi splash anche in caso di errore
+        const splash = document.getElementById('loading-splash');
+        if (splash) splash.classList.add('hidden');
         console.error("❌ ERRORE CRITICO in initApp:", err);
     }
 };
@@ -1180,6 +1203,71 @@ const renderQuotes = () => {
     } catch (e) {
         console.warn("Errore rendering quotes:", e);
     }
+};
+
+// --- ITINERARIO ---
+const ITINERARY_KEY = 'roadtrip_itinerary';
+
+function loadItinerary() {
+    try {
+        return JSON.parse(localStorage.getItem(ITINERARY_KEY)) || [];
+    } catch { return []; }
+}
+
+function saveItinerary(items) {
+    localStorage.setItem(ITINERARY_KEY, JSON.stringify(items));
+}
+
+function renderItinerary() {
+    const container = document.getElementById('itineraryContainer');
+    if (!container) return;
+    const items = loadItinerary();
+
+    if (items.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:rgba(255,255,255,0.4);font-size:0.8rem;padding:15px;">Aggiungi una tappa all\'itinerario! 📍</p>';
+        return;
+    }
+
+    items.sort((a, b) => (a.day || 0) - (b.day || 0) || (a.id || '').localeCompare(b.id || ''));
+
+    container.innerHTML = items.map((item, idx) => `
+        <div class="itinerary-card">
+            <span class="itinerary-day">G${item.day}</span>
+            <span class="itinerary-text">${item.text}</span>
+            <button class="itinerary-delete" onclick="deleteItineraryItem(${idx})" title="Elimina">✕</button>
+        </div>
+    `).join('');
+}
+
+window.addItineraryItem = () => {
+    const dayInput = document.getElementById('itineraryDay');
+    const textInput = document.getElementById('itineraryText');
+    const day = parseInt(dayInput?.value);
+    const text = textInput?.value.trim();
+
+    if (!day || day < 1) { alert('Inserisci un giorno valido!'); return; }
+    if (!text) { alert('Inserisci cosa si fa!'); return; }
+
+    const items = loadItinerary();
+    items.push({ id: Date.now() + '_' + Math.random().toString(36).substr(2, 4), day, text });
+    saveItinerary(items);
+    renderItinerary();
+
+    dayInput.value = '';
+    textInput.value = '';
+};
+
+window.deleteItineraryItem = (idx) => {
+    const items = loadItinerary();
+    items.splice(idx, 1);
+    saveItinerary(items);
+    renderItinerary();
+};
+
+window.clearItinerary = () => {
+    if (!confirm('Resettare tutto l\'itinerario?')) return;
+    saveItinerary([]);
+    renderItinerary();
 };
 
 // --- LOGICA EVENTI RAPIDI STATISTICHE ---
