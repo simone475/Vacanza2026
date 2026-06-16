@@ -113,6 +113,21 @@ body {
     margin-top: 20px;
 }
 
+@media (max-width: 400px) {
+    .roadmap-container {
+        padding-left: 22px;
+    }
+    .card {
+        padding: 16px;
+        border-radius: 18px;
+    }
+    .stop-marker {
+        left: -22px;
+        width: 14px;
+        height: 14px;
+    }
+}
+
 .roadmap-container::before {
     content: '';
     position: absolute;
@@ -205,6 +220,8 @@ h1 {
     padding: 24px;
     box-shadow: var(--shadow-main);
     transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    overflow: hidden;
+    word-break: break-word;
 }
 
 .card:hover {
@@ -404,6 +421,8 @@ h2 {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 12px;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 .input-group label {
     font-size: 0.85rem;
@@ -508,6 +527,7 @@ input[type="number"]:focus {
     display: flex;
     gap: 8px;
     align-items: center;
+    flex-wrap: wrap;
 }
 .itinerary-card {
     display: flex;
@@ -558,6 +578,7 @@ input[type="number"]:focus {
     display: flex;
     gap: 8px;
     margin-bottom: 15px;
+    flex-wrap: wrap;
 }
 .quotes-container {
     display: flex;
@@ -613,9 +634,11 @@ input[type="number"]:focus {
     display: flex;
     gap: 8px;
     margin-bottom: 15px;
+    flex-wrap: wrap;
 }
 .checklist-input {
     flex: 1;
+    min-width: 0;
     padding: 12px 16px;
     font-size: 0.9rem;
     color: var(--text-main);
