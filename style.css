@@ -32,9 +32,24 @@ body {
     justify-content: center;
     padding: 20px 10px;
     background-image: 
-        radial-gradient(at 10% 20%, hsla(25, 95%, 53%, 0.05) 0px, transparent 50%),
-        radial-gradient(at 90% 80%, hsla(327, 96%, 60%, 0.05) 0px, transparent 50%);
+        radial-gradient(at 10% 20%, hsla(25, 95%, 53%, 0.10) 0px, transparent 50%),
+        radial-gradient(at 80% 30%, hsla(327, 96%, 60%, 0.08) 0px, transparent 50%),
+        radial-gradient(at 50% 80%, hsla(290, 85%, 65%, 0.06) 0px, transparent 50%),
+        radial-gradient(at 90% 10%, hsla(210, 100%, 55%, 0.04) 0px, transparent 50%);
     background-attachment: fixed;
+    position: relative;
+}
+
+body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 99998;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
 }
 
 /* --- SCROLLBAR PERSONALIZZATA --- */
@@ -164,16 +179,34 @@ body {
     box-shadow: 0 0 12px var(--accent-primary);
     z-index: 2;
     transition: all 0.3s;
+    animation: markerPulse 2.5s ease-in-out infinite;
+}
+
+@keyframes markerPulse {
+    0%, 100% { box-shadow: 0 0 8px var(--accent-primary); }
+    50% { box-shadow: 0 0 18px var(--accent-primary), 0 0 30px -5px var(--accent-primary); }
 }
 
 .stop-marker.marker-green {
     border-color: var(--accent-green);
     box-shadow: 0 0 12px var(--accent-green);
+    animation-name: markerPulseGreen;
+}
+
+@keyframes markerPulseGreen {
+    0%, 100% { box-shadow: 0 0 8px var(--accent-green); }
+    50% { box-shadow: 0 0 18px var(--accent-green), 0 0 30px -5px var(--accent-green); }
 }
 
 .stop-marker.marker-pink {
     border-color: var(--accent-secondary);
     box-shadow: 0 0 12px var(--accent-secondary);
+    animation-name: markerPulsePink;
+}
+
+@keyframes markerPulsePink {
+    0%, 100% { box-shadow: 0 0 8px var(--accent-secondary); }
+    50% { box-shadow: 0 0 18px var(--accent-secondary), 0 0 30px -5px var(--accent-secondary); }
 }
 
 /* --- HEADER --- */
@@ -190,10 +223,18 @@ h1 {
     font-weight: 800;
     letter-spacing: -2px;
     text-transform: uppercase;
-    background: linear-gradient(135deg, var(--text-main) 30%, var(--accent-secondary));
+    background: linear-gradient(135deg, var(--text-main) 20%, var(--accent-secondary) 40%, var(--accent-tertiary) 60%, var(--accent-primary) 80%);
+    background-size: 200% 200%;
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
+    animation: gradientShift 5s ease-in-out infinite alternate;
     margin-bottom: 5px;
+}
+
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 100% 50%; }
 }
 
 #countdown {
@@ -212,6 +253,7 @@ h1 {
 
 /* --- CARD STYLE (GLASSMORPHISM) --- */
 .card {
+    position: relative;
     background: var(--bg-card);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
@@ -224,10 +266,22 @@ h1 {
     word-break: break-word;
 }
 
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(180deg, hsla(0, 0%, 100%, 0.04) 0%, transparent 100%);
+    pointer-events: none;
+    border-radius: 24px 24px 0 0;
+}
+
 .card:hover {
     transform: translateY(-4px);
-    border-color: var(--border-card-hover);
-    box-shadow: 0 20px 40px -10px rgba(0,0,0,0.7), 0 0 15px -5px rgba(236, 72, 153, 0.15);
+    border-color: var(--accent-secondary);
+    box-shadow: var(--shadow-main), 0 0 30px -8px var(--accent-secondary), inset 0 0 30px -12px var(--accent-secondary);
 }
 
 h2 {
@@ -271,12 +325,28 @@ h2 {
 }
 
 .btn-blue { 
+    position: relative;
+    overflow: hidden;
     background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); 
     color: #fff; 
     border: 1px solid rgba(255,255,255,0.15); 
 }
 .btn-blue:hover {
     box-shadow: var(--shadow-glow);
+}
+.btn-blue::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -75%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, hsla(0, 0%, 100%, 0.2), transparent);
+    transform: skewX(-20deg);
+    transition: left 0.5s ease;
+}
+.btn-blue:hover::after {
+    left: 125%;
 }
 
 /* --- BARRA DEL VIAGGIO (HIGHWAY EFFECT) --- */
